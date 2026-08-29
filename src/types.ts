@@ -36,17 +36,21 @@ export interface ApplicantProfile {
 
 export type FillStrategy = "heuristic" | "ai";
 
-export interface ApplyRequest {
-  profile: ApplicantProfile;
+export interface CreateSessionRequest {
   strategy: FillStrategy;
+}
+
+export interface FillRequest {
+  profile: ApplicantProfile;
+  autoSubmit: boolean;
 }
 
 export type RunEvent =
   | { type: "log"; level: "info" | "success" | "warn" | "error"; message: string; timestamp: number }
-  | { type: "frame"; imageDataUrl: string; timestamp: number }
   | {
       type: "done";
       success: boolean;
       message: string;
       confirmationText?: string;
+      awaitingManualSubmit?: boolean;
     };

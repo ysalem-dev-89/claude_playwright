@@ -7,11 +7,15 @@ board involved. It ships with:
 - A **mock Greenhouse-style job posting** (`public/mock-job.html`) with the fields a typical
   Greenhouse application form asks for (contact info, resume upload, links, work
   authorization, EEOC self-identification, etc).
-- A small **web UI** (`public/index.html`) where you paste/edit a JSON applicant profile,
-  pick a fill strategy, and watch it live: a `<canvas>` streams a screenshot after every
-  action a headless browser takes, so you see each field get filled and the form get
-  submitted in near-real-time, alongside a text log of what's happening.
-- Two interchangeable automation strategies:
+- A small **web UI** (`public/index.html`) with a *live, controllable* view of that form: a
+  `<canvas>` streams the real headless page over a WebSocket, and your clicks, scrolling, and
+  keystrokes on it are forwarded straight into that same browser — so you can fill in a field
+  by hand, then click "Fill Fields" to have automation fill in the rest, on the same page.
+- A **fill vs. submit split**: "Fill Fields" only populates the fields; whether it also submits
+  is controlled by an "Auto-submit after filling" checkbox. Leave it off to review the form
+  yourself and click "Submit Application" (or just click the real Submit button in the live
+  view) when you're ready; turn it on for a fully hands-off run.
+- Two interchangeable automation strategies for "Fill Fields":
   - **Heuristic** — plain [Playwright](https://playwright.dev/), matches each form field to a
     profile value by its `<label>` text. Deterministic, free, but brittle if the form's
     wording changes.
@@ -23,8 +27,25 @@ board involved. It ships with:
 
 Both strategies fall back to a direct Playwright call for the resume file upload, since
 native OS file choosers aren't something an LLM-driven `act()` call can drive reliably —
-`stagehand.page` is a real Playwright `Page`, so mixing raw Playwright calls with AI actions
+Stagehand's page is a real Playwright `Page`, so mixing raw Playwright calls with AI actions
 on the same page is fine.
+
+## How the live view works
+
+Picking a strategy opens a **session**: a real headless Chromium page that stays open on the
+server for as long as you're using it (instead of a fresh browser per click). The UI connects
+to it over a WebSocket at `/ws/session/:id`, which does two things:
+
+- Streams a JPEG screenshot of the page a few times a second (plus immediately after every
+  input), which the UI draws onto the `<canvas>`.
+- Forwards your `click`, `wheel` (scroll), and `key` events on the canvas into that same page
+  via Playwright's `page.mouse` / `page.keyboard`.
+
+"Fill Fields" runs the chosen strategy against that same open page — so anything you typed
+manually is still there, and anything the strategy overwrites (every field the profile has a
+value for) changes live in front of you. Switching strategy closes the old session (and its
+browser) and opens a new one, since heuristic sessions use a plain Playwright page while AI
+sessions use a Stagehand-wrapped one.
 
 ## Why Stagehand?
 
@@ -71,7 +92,7 @@ The UI ships with a placeholder profile (`src/sampleProfile.ts`) shaped like thi
 ```
 
 You can either:
-- Paste your own JSON directly into the textarea in the UI (it's just sent to `/api/apply`
+- Paste your own JSON directly into the textarea in the UI (it's just sent to `/api/session/:id/fill`
   as-is), or
 - Replace `src/sampleProfile.ts` with your real data once you provide it, so it's
   pre-populated on load.
@@ -83,16 +104,18 @@ project root.
 
 ```
 src/
-  server.ts                 Express app: serves the UI + mock job page, exposes /api/apply
-  types.ts                  ApplicantProfile / event types
+  server.ts                 Express app + WebSocket live view; session/fill/submit endpoints
+  types.ts                  ApplicantProfile / request / event types
   sampleProfile.ts          Placeholder applicant profile
   automation/
-    runApplication.ts       Picks a strategy, streams log + live-frame + result events
-    heuristicStrategy.ts    Playwright-only, label-matching fill
-    stagehandStrategy.ts    Stagehand (AI) fill
-    liveView.ts             Shared viewport size + per-step JPEG screenshot capture
+    liveSession.ts          Opens/tracks/closes the per-strategy headless session
+    heuristicStrategy.ts    Playwright-only, label-matching field fill (no browser lifecycle)
+    stagehandStrategy.ts    Stagehand (AI) field fill (no browser lifecycle)
+    formActions.ts          Shared submit-button click + confirmation-text reading
+    liveView.ts             Shared viewport size + JPEG screenshot capture for the live view
+    browserPath.ts          Resolves the sandbox's pre-installed Chromium when present
 public/
-  index.html, app.js, styles.css   Demo UI
+  index.html, app.js, styles.css   Demo UI (live canvas, fill/submit controls)
   mock-job.html, mock-job.js       The target Greenhouse-style application form
 sample-data/resume.txt      Placeholder resume uploaded during the demo
 ```
@@ -103,5 +126,7 @@ sample-data/resume.txt      Placeholder resume uploaded during the demo
   when present (this project's cloud dev sandbox ships one there); everywhere else — including
   a normal local checkout — it falls back to the Chromium Playwright installs itself via
   `npx playwright install chromium`.
-- `/api/apply` streams newline-delimited JSON (NDJSON) so the UI can show progress live
-  instead of waiting for the whole run to finish.
+- Idle sessions (no fill/submit/websocket activity for 10 minutes) are closed automatically so
+  an abandoned tab doesn't leak a headless browser process.
+- `/api/session/:id/fill` streams newline-delimited JSON (NDJSON) so the UI can show progress
+  live instead of waiting for the whole run to finish.

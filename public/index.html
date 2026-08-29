@@ -11,9 +11,10 @@
     <header class="app-header">
       <h1>Greenhouse Auto-Apply Demo</h1>
       <p>
-        Edit the applicant profile below, pick a fill strategy, then watch it fill out and
-        submit the mock Greenhouse-style job posting live.
-        <a href="/mock-job.html" target="_blank" rel="noopener">View the target job posting ↗</a>
+        The panel on the right is a <strong>live, controllable</strong> copy of the job
+        application form — click into it and type like any other page. Click "Fill Fields" to
+        have Playwright (or Stagehand + Claude) fill in what's left from the profile below.
+        <a href="/mock-job.html" target="_blank" rel="noopener">Open the job posting in its own tab ↗</a>
       </p>
     </header>
 
@@ -45,14 +46,19 @@
           No <code>ANTHROPIC_API_KEY</code> detected on the server — set one in <code>.env</code> to enable this mode.
         </p>
 
-        <button id="apply-btn" class="apply-btn">Apply to Job</button>
+        <label class="checkbox-row">
+          <input type="checkbox" id="auto-submit-toggle" />
+          Auto-submit after filling (otherwise you submit it yourself)
+        </label>
+
+        <button id="fill-btn" class="apply-btn">Fill Fields</button>
+        <button id="submit-btn" class="apply-btn secondary">Submit Application</button>
       </section>
 
       <section class="panel canvas-panel">
-        <h2>Live browser view</h2>
+        <h2>Live browser view <span class="live-status" id="live-status">connecting…</span></h2>
         <div class="canvas-frame">
-          <canvas id="live-canvas" width="960" height="720"></canvas>
-          <div id="canvas-placeholder" class="canvas-placeholder">Click "Apply to Job" to watch it fill the form live.</div>
+          <canvas id="live-canvas" width="960" height="720" tabindex="0"></canvas>
         </div>
 
         <h2>Run log</h2>

@@ -1,9 +1,15 @@
 import "dotenv/config";
 import path from "node:path";
 import express from "express";
+import { WebSocketServer, WebSocket } from "ws";
 import { sampleProfile } from "./sampleProfile";
-import { runApplication } from "./automation/runApplication";
-import { ApplyRequest, RunEvent } from "./types";
+import { createSession, getSession, closeSession, LiveSession } from "./automation/liveSession";
+import { fillHeuristicFields } from "./automation/heuristicStrategy";
+import { fillAiFields } from "./automation/stagehandStrategy";
+import { clickSubmit, waitForConfirmation } from "./automation/formActions";
+import { captureFrameDataUrl } from "./automation/liveView";
+import { ApplicantProfile, CreateSessionRequest, FillRequest, RunEvent } from "./types";
+import { RunLogger } from "./automation/logger";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -19,28 +25,150 @@ app.get("/api/ai-available", (_req, res) => {
   res.json({ available: Boolean(process.env.ANTHROPIC_API_KEY) });
 });
 
-app.post("/api/apply", async (req, res) => {
-  const body = req.body as Partial<ApplyRequest>;
-  if (!body.profile || !body.strategy) {
-    res.status(400).json({ error: "Request body must include { profile, strategy }." });
+app.post("/api/session", async (req, res) => {
+  const body = req.body as Partial<CreateSessionRequest>;
+  if (body.strategy !== "heuristic" && body.strategy !== "ai") {
+    res.status(400).json({ error: "Request body must include { strategy: 'heuristic' | 'ai' }." });
     return;
   }
+
+  const jobUrl = `${req.protocol}://${req.get("host")}/mock-job.html`;
+  try {
+    const session = await createSession(body.strategy, jobUrl);
+    res.json({ sessionId: session.id });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+app.delete("/api/session/:id", async (req, res) => {
+  await closeSession(req.params.id);
+  res.status(204).end();
+});
+
+app.post("/api/session/:id/fill", async (req, res) => {
+  const session = getSession(req.params.id);
+  if (!session) {
+    res.status(404).json({ error: "Session not found or expired — start a new one." });
+    return;
+  }
+
+  const body = req.body as Partial<FillRequest>;
+  if (!body.profile) {
+    res.status(400).json({ error: "Request body must include { profile }." });
+    return;
+  }
+  const profile = body.profile as ApplicantProfile;
+  const autoSubmit = Boolean(body.autoSubmit);
 
   res.writeHead(200, {
     "Content-Type": "application/x-ndjson",
     "Cache-Control": "no-cache",
     "Transfer-Encoding": "chunked",
   });
+  const emit = (event: RunEvent) => res.write(JSON.stringify(event) + "\n");
+  const log: RunLogger = (level, message) => emit({ type: "log", level, message, timestamp: Date.now() });
 
-  const emit = (event: RunEvent) => {
-    res.write(JSON.stringify(event) + "\n");
-  };
+  try {
+    if (session.strategy === "ai") {
+      await fillAiFields(session.page, profile, log);
+    } else {
+      await fillHeuristicFields(session.page, profile, log);
+    }
 
-  const baseUrl = `${req.protocol}://${req.get("host")}`;
-  await runApplication(body.profile, body.strategy, baseUrl, emit);
+    if (autoSubmit) {
+      log("info", "Submitting application...");
+      await clickSubmit(session.page);
+      const confirmationText = await waitForConfirmation(session.page);
+      log("success", "Application submitted successfully.");
+      emit({ type: "done", success: true, message: "Application submitted successfully.", confirmationText });
+    } else {
+      log("success", "Fields filled.");
+      emit({
+        type: "done",
+        success: true,
+        message: "Fields filled. Click \"Submit Application\" when you're ready (or submit it yourself in the live view).",
+        awaitingManualSubmit: true,
+      });
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log("error", message);
+    emit({ type: "done", success: false, message });
+  }
   res.end();
 });
 
-app.listen(PORT, () => {
+app.post("/api/session/:id/submit", async (req, res) => {
+  const session = getSession(req.params.id);
+  if (!session) {
+    res.status(404).json({ error: "Session not found or expired — start a new one." });
+    return;
+  }
+  try {
+    await clickSubmit(session.page);
+    const confirmationText = await waitForConfirmation(session.page);
+    res.json({ success: true, confirmationText });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+const server = app.listen(PORT, () => {
   console.log(`Greenhouse apply demo running at http://localhost:${PORT}`);
 });
+
+// Live, bidirectional view of a session's page: streams JPEG frames to the browser and
+// forwards the user's clicks/scrolls/keystrokes into the real headless page, so the same
+// page can be driven by a human and by fillHeuristicFields/fillAiFields interchangeably.
+const wss = new WebSocketServer({ noServer: true });
+const FRAME_INTERVAL_MS = 300;
+
+server.on("upgrade", (req, socket, head) => {
+  const match = (req.url || "").match(/^\/ws\/session\/([^/?]+)/);
+  const session = match ? getSession(match[1]) : undefined;
+  if (!session) {
+    socket.destroy();
+    return;
+  }
+  wss.handleUpgrade(req, socket, head, (ws) => attachLiveSocket(ws, session));
+});
+
+function attachLiveSocket(ws: WebSocket, session: LiveSession) {
+  const sendFrame = async () => {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    try {
+      const imageDataUrl = await captureFrameDataUrl(session.page);
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "frame", imageDataUrl }));
+    } catch {
+      // page may be mid-navigation/closed for this tick — next interval tick will retry
+    }
+  };
+
+  sendFrame();
+  const interval = setInterval(sendFrame, FRAME_INTERVAL_MS);
+
+  ws.on("message", async (raw) => {
+    let msg: { type?: string; x?: number; y?: number; deltaY?: number; key?: string };
+    try {
+      msg = JSON.parse(raw.toString());
+    } catch {
+      return;
+    }
+
+    try {
+      if (msg.type === "click" && typeof msg.x === "number" && typeof msg.y === "number") {
+        await session.page.mouse.click(msg.x, msg.y);
+      } else if (msg.type === "wheel" && typeof msg.deltaY === "number") {
+        await session.page.mouse.wheel(0, msg.deltaY);
+      } else if (msg.type === "key" && msg.key) {
+        await session.page.keyboard.press(msg.key);
+      }
+      sendFrame();
+    } catch {
+      // unsupported key name or the page rejected the input — safe to ignore for a demo
+    }
+  });
+
+  ws.on("close", () => clearInterval(interval));
+}
