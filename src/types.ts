@@ -5,6 +5,14 @@ export interface ApplicantProfile {
     email: string;
     phone: string;
     location: string;
+    /** Structured address, used by the Workday flow's "My Information" step. Not needed for Greenhouse. */
+    address?: {
+      line1: string;
+      city: string;
+      state?: string;
+      postalCode?: string;
+      country: string;
+    };
   };
   links: {
     linkedin?: string;
@@ -32,13 +40,37 @@ export interface ApplicantProfile {
     veteranStatus: string;
     disabilityStatus: string;
   };
+  /** Used by the Workday flow's "My Experience" step. Not needed for Greenhouse. */
+  workHistory?: WorkHistoryEntry[];
+  /** Used by the Workday flow's "My Experience" step. Not needed for Greenhouse. */
+  education?: EducationEntry[];
+}
+
+export interface WorkHistoryEntry {
+  jobTitle: string;
+  company: string;
+  location?: string;
+  /** Free-form, e.g. "June 2021" — matches Workday's own loosely-formatted date fields. */
+  startDate: string;
+  endDate?: string;
+  isCurrent?: boolean;
+  description?: string;
+}
+
+export interface EducationEntry {
+  school: string;
+  degree?: string;
+  fieldOfStudy?: string;
+  graduationDate?: string;
 }
 
 export type FillStrategy = "heuristic" | "ai";
+export type Platform = "greenhouse" | "workday";
 
 export interface CreateSessionRequest {
   strategy: FillStrategy;
-  /** Omit (or leave blank) to use the built-in mock job posting. */
+  platform: Platform;
+  /** Omit (or leave blank) to use the platform's built-in mock job posting. */
   jobUrl?: string;
 }
 

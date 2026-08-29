@@ -6,10 +6,18 @@ import { sampleProfile } from "./sampleProfile";
 import { createSession, getSession, closeSession, LiveSession } from "./automation/liveSession";
 import { fillHeuristicFields } from "./automation/heuristicStrategy";
 import { fillAiFields } from "./automation/stagehandStrategy";
+import { runWorkdayHeuristicSteps } from "./automation/workdayStrategy";
+import { runWorkdayAiSteps } from "./automation/workdayStagehandStrategy";
+import { getCredential, saveCredential } from "./automation/credentialStore";
 import { clickSubmit, waitForConfirmation } from "./automation/formActions";
 import { captureFrameDataUrl } from "./automation/liveView";
 import { ApplicantProfile, CreateSessionRequest, FillRequest, RunEvent } from "./types";
 import { RunLogger } from "./automation/logger";
+
+const MOCK_JOB_PATH: Record<"greenhouse" | "workday", string> = {
+  greenhouse: "/mock-job.html",
+  workday: "/mock-workday-job.html",
+};
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -31,9 +39,13 @@ app.post("/api/session", async (req, res) => {
     res.status(400).json({ error: "Request body must include { strategy: 'heuristic' | 'ai' }." });
     return;
   }
+  if (body.platform !== "greenhouse" && body.platform !== "workday") {
+    res.status(400).json({ error: "Request body must include { platform: 'greenhouse' | 'workday' }." });
+    return;
+  }
 
   const localOrigin = `${req.protocol}://${req.get("host")}`;
-  const mockJobUrl = `${localOrigin}/mock-job.html`;
+  const mockJobUrl = `${localOrigin}${MOCK_JOB_PATH[body.platform]}`;
   const requestedUrl = body.jobUrl?.trim();
 
   let jobUrl = mockJobUrl;
@@ -55,7 +67,7 @@ app.post("/api/session", async (req, res) => {
   }
 
   try {
-    const session = await createSession(body.strategy, jobUrl, isExternal);
+    const session = await createSession(body.strategy, body.platform, jobUrl, isExternal);
     res.json({ sessionId: session.id, isExternal });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
@@ -95,7 +107,18 @@ app.post("/api/session/:id/fill", async (req, res) => {
   }
 
   try {
-    if (session.strategy === "ai") {
+    if (session.platform === "workday") {
+      const existingCredential = getCredential(session.hostname);
+      const account =
+        session.strategy === "ai"
+          ? await runWorkdayAiSteps(session.page, profile, existingCredential, log)
+          : await runWorkdayHeuristicSteps(session.page, profile, existingCredential, log);
+
+      if (account.isNewAccount) {
+        saveCredential(session.hostname, account.email, account.password);
+        log("info", `Saved the new account for ${session.hostname} — future runs against this employer will sign in instead of registering again.`);
+      }
+    } else if (session.strategy === "ai") {
       await fillAiFields(session.page, profile, log);
     } else {
       await fillHeuristicFields(session.page, profile, log);

@@ -11,6 +11,13 @@ export const sampleProfile: ApplicantProfile = {
     email: "jordan.rivera@example.com",
     phone: "+1-555-013-4892",
     location: "San Francisco, CA",
+    address: {
+      line1: "123 Market Street",
+      city: "San Francisco",
+      state: "CA",
+      postalCode: "94103",
+      country: "United States",
+    },
   },
   links: {
     linkedin: "https://linkedin.com/in/jordan-rivera-dev",
@@ -40,4 +47,30 @@ export const sampleProfile: ApplicantProfile = {
     veteranStatus: "I don't wish to answer",
     disabilityStatus: "I don't wish to answer",
   },
+  workHistory: [
+    {
+      jobTitle: "Senior Software Engineer",
+      company: "Example Corp",
+      location: "San Francisco, CA",
+      startDate: "June 2021",
+      isCurrent: true,
+      description: "Built and shipped developer tooling used by 200+ engineers. Led migration of core services to a distributed architecture.",
+    },
+    {
+      jobTitle: "Software Engineer",
+      company: "Sample Inc",
+      location: "Oakland, CA",
+      startDate: "July 2018",
+      endDate: "May 2021",
+      description: "Shipped full-stack features end-to-end across web and API layers.",
+    },
+  ],
+  education: [
+    {
+      school: "State University",
+      degree: "Bachelor's Degree",
+      fieldOfStudy: "Computer Science",
+      graduationDate: "2018",
+    },
+  ],
 };

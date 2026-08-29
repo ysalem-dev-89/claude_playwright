@@ -2,7 +2,7 @@ import type { Page } from "playwright";
 
 /** Clicks the mock job page's submit button. Shared by both fill strategies and the manual "Submit" action. */
 export async function clickSubmit(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /submit application/i }).click();
+  await page.getByRole("button", { name: /^submit(\s+application)?$/i }).click();
 }
 
 export async function waitForConfirmation(page: Page, timeoutMs = 8000): Promise<string> {

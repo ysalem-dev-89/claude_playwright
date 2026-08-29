@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { chromium, Browser, Page as PWPage } from "playwright";
 import { Stagehand, Page as SHPage } from "@browserbasehq/stagehand";
-import { FillStrategy } from "../types";
+import { FillStrategy, Platform } from "../types";
 import { resolveChromiumExecutablePath } from "./browserPath";
 import { LIVE_VIEW_VIEWPORT } from "./liveView";
 
 export type LiveSession =
-  | { id: string; strategy: "heuristic"; page: PWPage; browser: Browser; stagehand?: undefined; isExternal: boolean; lastUsed: number }
-  | { id: string; strategy: "ai"; page: SHPage; stagehand: Stagehand; browser?: undefined; isExternal: boolean; lastUsed: number };
+  | { id: string; strategy: "heuristic"; platform: Platform; hostname: string; page: PWPage; browser: Browser; stagehand?: undefined; isExternal: boolean; lastUsed: number }
+  | { id: string; strategy: "ai"; platform: Platform; hostname: string; page: SHPage; stagehand: Stagehand; browser?: undefined; isExternal: boolean; lastUsed: number };
 
 const sessions = new Map<string, LiveSession>();
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
@@ -29,8 +29,14 @@ async function blockNonGetRequests(page: PWPage | SHPage): Promise<void> {
   });
 }
 
-export async function createSession(strategy: FillStrategy, jobUrl: string, isExternal: boolean): Promise<LiveSession> {
+export async function createSession(
+  strategy: FillStrategy,
+  platform: Platform,
+  jobUrl: string,
+  isExternal: boolean,
+): Promise<LiveSession> {
   const id = randomUUID();
+  const hostname = new URL(jobUrl).hostname;
 
   if (strategy === "ai") {
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -51,7 +57,7 @@ export async function createSession(strategy: FillStrategy, jobUrl: string, isEx
     await stagehand.init();
     if (isExternal) await blockNonGetRequests(stagehand.page);
     await stagehand.page.goto(jobUrl, { waitUntil: "domcontentloaded" });
-    const session: LiveSession = { id, strategy: "ai", page: stagehand.page, stagehand, isExternal, lastUsed: Date.now() };
+    const session: LiveSession = { id, strategy: "ai", platform, hostname, page: stagehand.page, stagehand, isExternal, lastUsed: Date.now() };
     sessions.set(id, session);
     return session;
   }
@@ -60,7 +66,7 @@ export async function createSession(strategy: FillStrategy, jobUrl: string, isEx
   const page = await browser.newPage({ viewport: LIVE_VIEW_VIEWPORT });
   if (isExternal) await blockNonGetRequests(page);
   await page.goto(jobUrl, { waitUntil: "domcontentloaded" });
-  const session: LiveSession = { id, strategy: "heuristic", page, browser, isExternal, lastUsed: Date.now() };
+  const session: LiveSession = { id, strategy: "heuristic", platform, hostname, page, browser, isExternal, lastUsed: Date.now() };
   sessions.set(id, session);
   return session;
 }

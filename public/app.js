@@ -1,5 +1,6 @@
 const profileTextarea = document.getElementById("profile-json");
 const jobUrlInput = document.getElementById("job-url");
+const openPostingLink = document.getElementById("open-posting-link");
 const externalHintEl = document.getElementById("external-hint");
 const fillBtn = document.getElementById("fill-btn");
 const submitBtn = document.getElementById("submit-btn");
@@ -38,17 +39,38 @@ async function init() {
     });
   });
 
+  document.querySelectorAll('input[name="platform"]').forEach((el) => {
+    el.addEventListener("change", () => {
+      appendLog("info", `Switching platform to ${el.value === "workday" ? "Workday" : "Greenhouse"} — resetting the live view.`);
+      updateOpenPostingLink();
+      startSession();
+    });
+  });
+
   jobUrlInput.addEventListener("change", () => {
     appendLog("info", `Target changed to ${jobUrlInput.value.trim() || "the mock job posting"} — resetting the live view.`);
+    updateOpenPostingLink();
     startSession();
   });
 
   setupCanvasInput();
+  updateOpenPostingLink();
   await startSession();
 }
 
 function currentStrategy() {
   return document.querySelector('input[name="strategy"]:checked').value;
+}
+
+function currentPlatform() {
+  return document.querySelector('input[name="platform"]:checked').value;
+}
+
+function updateOpenPostingLink() {
+  const custom = jobUrlInput.value.trim();
+  const defaultPath = currentPlatform() === "workday" ? "/mock-workday-job.html" : "/mock-job.html";
+  openPostingLink.href = custom || defaultPath;
+  jobUrlInput.placeholder = defaultPath;
 }
 
 // Guards against overlapping calls (e.g. a strategy switch and a URL change firing back-to-back):
@@ -57,6 +79,7 @@ function currentStrategy() {
 async function startSession() {
   const myGeneration = ++sessionGeneration;
   const strategy = currentStrategy();
+  const platform = currentPlatform();
   const jobUrl = jobUrlInput.value.trim();
 
   liveStatusEl.textContent = "connecting…";
@@ -80,7 +103,7 @@ async function startSession() {
     response = await fetch("/api/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ strategy, jobUrl: jobUrl || undefined }),
+      body: JSON.stringify({ strategy, platform, jobUrl: jobUrl || undefined }),
     });
   } catch (err) {
     if (myGeneration !== sessionGeneration) return;

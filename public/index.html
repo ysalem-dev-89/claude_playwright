@@ -3,27 +3,46 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Greenhouse Auto-Apply Demo</title>
+<title>Auto-Apply Demo</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="app">
     <header class="app-header">
-      <h1>Greenhouse Auto-Apply Demo</h1>
+      <h1>Auto-Apply Demo</h1>
       <p>
         The panel on the right is a <strong>live, controllable</strong> copy of the job
         application form — click into it and type like any other page. Click "Fill Fields" to
         have Playwright (or Stagehand + Claude) fill in what's left from the profile below.
-        <a href="/mock-job.html" target="_blank" rel="noopener">Open the job posting in its own tab ↗</a>
+        <a href="/mock-job.html" target="_blank" rel="noopener" id="open-posting-link">Open the job posting in its own tab ↗</a>
       </p>
     </header>
 
     <main class="layout">
       <section class="panel form-panel">
+        <h2>Platform</h2>
+        <div class="strategy-options">
+          <label class="strategy-card">
+            <input type="radio" name="platform" value="greenhouse" checked />
+            <div>
+              <strong>Greenhouse</strong>
+              <p>One long form, single page. Submit is a single click at the bottom.</p>
+            </div>
+          </label>
+          <label class="strategy-card">
+            <input type="radio" name="platform" value="workday" />
+            <div>
+              <strong>Workday</strong>
+              <p>Multi-step wizard: account sign-in/creation, then several "Save and Continue" steps before Review.</p>
+            </div>
+          </label>
+        </div>
+
         <h2>Target job posting</h2>
-        <p class="hint">Leave as the mock posting, or paste a real Greenhouse job URL to test fill accuracy against
-          a real form. Submission is hard-disabled for anything other than the mock posting — this app will never
-          submit an application to a real job.</p>
+        <p class="hint">Leave as the mock posting, or paste a real job URL for the selected platform to test fill
+          accuracy against a real form. Submission (and, for Workday, real account registration) is hard-disabled
+          for anything other than the mock posting — this app will never submit an application or create a real
+          account on a real site.</p>
         <input type="text" id="job-url" placeholder="/mock-job.html" />
         <p class="hint" id="external-hint" hidden>
           ⚠️ External target — <strong>fill-only</strong>. Auto-submit and Submit Application are disabled.
