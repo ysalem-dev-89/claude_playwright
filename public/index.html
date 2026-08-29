@@ -20,6 +20,15 @@
 
     <main class="layout">
       <section class="panel form-panel">
+        <h2>Target job posting</h2>
+        <p class="hint">Leave as the mock posting, or paste a real Greenhouse job URL to test fill accuracy against
+          a real form. Submission is hard-disabled for anything other than the mock posting — this app will never
+          submit an application to a real job.</p>
+        <input type="text" id="job-url" placeholder="/mock-job.html" />
+        <p class="hint" id="external-hint" hidden>
+          ⚠️ External target — <strong>fill-only</strong>. Auto-submit and Submit Application are disabled.
+        </p>
+
         <h2>Applicant profile (JSON)</h2>
         <p class="hint">This is a placeholder profile. Replace it with the real one whenever you have it — the
           parsing logic doesn't change.</p>
@@ -45,6 +54,8 @@
         <p class="hint" id="ai-key-hint" hidden>
           No <code>ANTHROPIC_API_KEY</code> detected on the server — set one in <code>.env</code> to enable this mode.
         </p>
+        <p class="hint">On a real job posting, expect Heuristic to match fewer fields than on the mock — its label
+          regexes are tuned to this app's wording. AI is the one built to handle a real form's different wording.</p>
 
         <label class="checkbox-row">
           <input type="checkbox" id="auto-submit-toggle" />

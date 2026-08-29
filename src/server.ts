@@ -32,10 +32,31 @@ app.post("/api/session", async (req, res) => {
     return;
   }
 
-  const jobUrl = `${req.protocol}://${req.get("host")}/mock-job.html`;
+  const localOrigin = `${req.protocol}://${req.get("host")}`;
+  const mockJobUrl = `${localOrigin}/mock-job.html`;
+  const requestedUrl = body.jobUrl?.trim();
+
+  let jobUrl = mockJobUrl;
+  let isExternal = false;
+  if (requestedUrl) {
+    let parsed: URL;
+    try {
+      parsed = new URL(requestedUrl);
+    } catch {
+      res.status(400).json({ error: "Target URL is not a valid URL." });
+      return;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      res.status(400).json({ error: "Target URL must be http:// or https://." });
+      return;
+    }
+    jobUrl = parsed.toString();
+    isExternal = parsed.origin !== localOrigin;
+  }
+
   try {
-    const session = await createSession(body.strategy, jobUrl);
-    res.json({ sessionId: session.id });
+    const session = await createSession(body.strategy, jobUrl, isExternal);
+    res.json({ sessionId: session.id, isExternal });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
   }
@@ -59,7 +80,7 @@ app.post("/api/session/:id/fill", async (req, res) => {
     return;
   }
   const profile = body.profile as ApplicantProfile;
-  const autoSubmit = Boolean(body.autoSubmit);
+  const autoSubmit = Boolean(body.autoSubmit) && !session.isExternal;
 
   res.writeHead(200, {
     "Content-Type": "application/x-ndjson",
@@ -68,6 +89,10 @@ app.post("/api/session/:id/fill", async (req, res) => {
   });
   const emit = (event: RunEvent) => res.write(JSON.stringify(event) + "\n");
   const log: RunLogger = (level, message) => emit({ type: "log", level, message, timestamp: Date.now() });
+
+  if (Boolean(body.autoSubmit) && session.isExternal) {
+    log("warn", "Auto-submit is disabled for external targets — this demo never submits to a real job posting. Fill only.");
+  }
 
   try {
     if (session.strategy === "ai") {
@@ -103,6 +128,10 @@ app.post("/api/session/:id/submit", async (req, res) => {
   const session = getSession(req.params.id);
   if (!session) {
     res.status(404).json({ error: "Session not found or expired — start a new one." });
+    return;
+  }
+  if (session.isExternal) {
+    res.status(403).json({ success: false, error: "Submission is disabled for external targets — this demo never submits to a real job posting." });
     return;
   }
   try {

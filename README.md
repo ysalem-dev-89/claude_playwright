@@ -30,6 +30,32 @@ native OS file choosers aren't something an LLM-driven `act()` call can drive re
 Stagehand's page is a real Playwright `Page`, so mixing raw Playwright calls with AI actions
 on the same page is fine.
 
+## Testing against a real Greenhouse posting
+
+The "Target job posting" field at the top of the UI defaults to the mock page, but you can
+paste a real `job-boards.greenhouse.io/...` URL there to see how well each strategy's field
+matching holds up against a real, unmodified form (real company forms word things differently
+than the mock, e.g. exact EEOC option text, so **expect Heuristic to match noticeably fewer
+fields than AI** — that's the point of comparing them).
+
+Submitting to a real posting is **hard-disabled**, not just hidden in the UI:
+- The "Auto-submit" checkbox and "Submit Application" button are disabled whenever the
+  session's target isn't this app's own mock page.
+- More importantly, every session for a non-local target installs a Playwright
+  `page.route("**/*", ...)` handler that **aborts every request that isn't GET/HEAD** before
+  it leaves the browser. This closes the real gap: the live view forwards your raw clicks
+  straight into the page, so a manual click on the *real* Submit button would otherwise still
+  fire — the network-level block is what actually guarantees no application ever reaches a
+  real employer, regardless of what triggered the click (our own code, the AI, or you).
+  The trade-off is that this can also block harmless non-GET requests the page makes for its
+  own rendering (an analytics beacon, a POST-based GraphQL query) — acceptable for a hard
+  safety guarantee, but worth knowing if a real posting looks partially broken while testing.
+
+This was built and typechecked in a sandboxed environment whose network policy blocks
+reaching arbitrary external sites, so it could not be exercised against a real, live Greenhouse
+posting end-to-end here — only against a local stand-in. Try it against a real posting on a
+machine with normal internet access to see how it actually behaves.
+
 ## How the live view works
 
 Picking a strategy opens a **session**: a real headless Chromium page that stays open on the
@@ -108,7 +134,8 @@ src/
   types.ts                  ApplicantProfile / request / event types
   sampleProfile.ts          Placeholder applicant profile
   automation/
-    liveSession.ts          Opens/tracks/closes the per-strategy headless session
+    liveSession.ts          Opens/tracks/closes the per-strategy headless session; installs
+                            the non-GET request block for external (real) targets
     heuristicStrategy.ts    Playwright-only, label-matching field fill (no browser lifecycle)
     stagehandStrategy.ts    Stagehand (AI) field fill (no browser lifecycle)
     formActions.ts          Shared submit-button click + confirmation-text reading

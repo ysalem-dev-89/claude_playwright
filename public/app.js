@@ -1,4 +1,6 @@
 const profileTextarea = document.getElementById("profile-json");
+const jobUrlInput = document.getElementById("job-url");
+const externalHintEl = document.getElementById("external-hint");
 const fillBtn = document.getElementById("fill-btn");
 const submitBtn = document.getElementById("submit-btn");
 const autoSubmitToggle = document.getElementById("auto-submit-toggle");
@@ -14,6 +16,8 @@ const liveStatusEl = document.getElementById("live-status");
 
 let sessionId = null;
 let ws = null;
+let isExternal = false;
+let sessionGeneration = 0;
 
 init();
 
@@ -30,19 +34,31 @@ async function init() {
   document.querySelectorAll('input[name="strategy"]').forEach((el) => {
     el.addEventListener("change", () => {
       appendLog("info", `Switching to ${el.value === "ai" ? "AI (Stagehand + Claude)" : "Heuristic (no AI)"} — resetting the live view.`);
-      startSession(el.value);
+      startSession();
     });
   });
 
+  jobUrlInput.addEventListener("change", () => {
+    appendLog("info", `Target changed to ${jobUrlInput.value.trim() || "the mock job posting"} — resetting the live view.`);
+    startSession();
+  });
+
   setupCanvasInput();
-  await startSession(currentStrategy());
+  await startSession();
 }
 
 function currentStrategy() {
   return document.querySelector('input[name="strategy"]:checked').value;
 }
 
-async function startSession(strategy) {
+// Guards against overlapping calls (e.g. a strategy switch and a URL change firing back-to-back):
+// only the most recent call is allowed to apply its result: an in-flight, superseded call quietly
+// discards its response instead of clobbering state a newer call already set up.
+async function startSession() {
+  const myGeneration = ++sessionGeneration;
+  const strategy = currentStrategy();
+  const jobUrl = jobUrlInput.value.trim();
+
   liveStatusEl.textContent = "connecting…";
   liveStatusEl.className = "live-status";
   canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
@@ -64,9 +80,10 @@ async function startSession(strategy) {
     response = await fetch("/api/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ strategy }),
+      body: JSON.stringify({ strategy, jobUrl: jobUrl || undefined }),
     });
   } catch (err) {
+    if (myGeneration !== sessionGeneration) return;
     appendLog("error", `Could not reach the server: ${err.message}`);
     liveStatusEl.textContent = "offline";
     liveStatusEl.className = "live-status offline";
@@ -75,6 +92,7 @@ async function startSession(strategy) {
 
   if (!response.ok) {
     const { error } = await response.json().catch(() => ({ error: "Unknown error starting session." }));
+    if (myGeneration !== sessionGeneration) return;
     appendLog("error", error);
     liveStatusEl.textContent = "offline";
     liveStatusEl.className = "live-status offline";
@@ -82,8 +100,24 @@ async function startSession(strategy) {
   }
 
   const data = await response.json();
+  if (myGeneration !== sessionGeneration) {
+    // A newer startSession() call already took over — this response arrived too late to matter,
+    // so just release the session it opened instead of adopting it.
+    fetch(`/api/session/${data.sessionId}`, { method: "DELETE" }).catch(() => {});
+    return;
+  }
+
   sessionId = data.sessionId;
+  isExternal = Boolean(data.isExternal);
+  applyExternalGuard();
   connectWebSocket(sessionId);
+}
+
+function applyExternalGuard() {
+  externalHintEl.hidden = !isExternal;
+  autoSubmitToggle.disabled = isExternal;
+  if (isExternal) autoSubmitToggle.checked = false;
+  submitBtn.disabled = isExternal;
 }
 
 function connectWebSocket(id) {
@@ -198,6 +232,10 @@ submitBtn.addEventListener("click", async () => {
     appendLog("error", "No live session yet — try again in a moment.");
     return;
   }
+  if (isExternal) {
+    appendLog("error", "Submission is disabled for external targets.");
+    return;
+  }
 
   setButtonsBusy(true);
   submitBtn.textContent = "Submitting...";
@@ -230,7 +268,7 @@ submitBtn.addEventListener("click", async () => {
 
 function setButtonsBusy(busy) {
   fillBtn.disabled = busy;
-  submitBtn.disabled = busy;
+  submitBtn.disabled = busy || isExternal;
 }
 
 function handleEvent(event) {

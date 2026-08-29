@@ -38,6 +38,14 @@ export type FillStrategy = "heuristic" | "ai";
 
 export interface CreateSessionRequest {
   strategy: FillStrategy;
+  /** Omit (or leave blank) to use the built-in mock job posting. */
+  jobUrl?: string;
+}
+
+export interface CreateSessionResponse {
+  sessionId: string;
+  /** True when jobUrl pointed somewhere other than this app's own mock posting — submission is disabled for these. */
+  isExternal: boolean;
 }
 
 export interface FillRequest {

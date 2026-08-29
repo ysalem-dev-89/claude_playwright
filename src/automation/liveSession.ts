@@ -6,13 +6,30 @@ import { resolveChromiumExecutablePath } from "./browserPath";
 import { LIVE_VIEW_VIEWPORT } from "./liveView";
 
 export type LiveSession =
-  | { id: string; strategy: "heuristic"; page: PWPage; browser: Browser; stagehand?: undefined; lastUsed: number }
-  | { id: string; strategy: "ai"; page: SHPage; stagehand: Stagehand; browser?: undefined; lastUsed: number };
+  | { id: string; strategy: "heuristic"; page: PWPage; browser: Browser; stagehand?: undefined; isExternal: boolean; lastUsed: number }
+  | { id: string; strategy: "ai"; page: SHPage; stagehand: Stagehand; browser?: undefined; isExternal: boolean; lastUsed: number };
 
 const sessions = new Map<string, LiveSession>();
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 
-export async function createSession(strategy: FillStrategy, jobUrl: string): Promise<LiveSession> {
+/**
+ * Hard, network-level block on ever submitting to a real job posting — not just a UI/API
+ * guard. Real submission (whether triggered by our own clickSubmit(), an AI act() call, or a
+ * manually forwarded click on the live canvas landing on the page's own Submit button) always
+ * goes out as a non-GET request, so aborting every non-GET/HEAD request is a guarantee that
+ * holds regardless of what triggered the click. This can also block harmless POSTs the page
+ * makes for its own rendering (e.g. an analytics beacon or a GraphQL query sent as POST) —
+ * an acceptable trade-off for "never submit" being an actual guarantee rather than best-effort.
+ */
+async function blockNonGetRequests(page: PWPage | SHPage): Promise<void> {
+  await page.route("**/*", (route) => {
+    const method = route.request().method();
+    if (method === "GET" || method === "HEAD") route.continue();
+    else route.abort("blockedbyclient");
+  });
+}
+
+export async function createSession(strategy: FillStrategy, jobUrl: string, isExternal: boolean): Promise<LiveSession> {
   const id = randomUUID();
 
   if (strategy === "ai") {
@@ -32,16 +49,18 @@ export async function createSession(strategy: FillStrategy, jobUrl: string): Pro
       verbose: 0,
     });
     await stagehand.init();
+    if (isExternal) await blockNonGetRequests(stagehand.page);
     await stagehand.page.goto(jobUrl, { waitUntil: "domcontentloaded" });
-    const session: LiveSession = { id, strategy: "ai", page: stagehand.page, stagehand, lastUsed: Date.now() };
+    const session: LiveSession = { id, strategy: "ai", page: stagehand.page, stagehand, isExternal, lastUsed: Date.now() };
     sessions.set(id, session);
     return session;
   }
 
   const browser = await chromium.launch({ executablePath: resolveChromiumExecutablePath(), headless: true });
   const page = await browser.newPage({ viewport: LIVE_VIEW_VIEWPORT });
+  if (isExternal) await blockNonGetRequests(page);
   await page.goto(jobUrl, { waitUntil: "domcontentloaded" });
-  const session: LiveSession = { id, strategy: "heuristic", page, browser, lastUsed: Date.now() };
+  const session: LiveSession = { id, strategy: "heuristic", page, browser, isExternal, lastUsed: Date.now() };
   sessions.set(id, session);
   return session;
 }
