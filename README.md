@@ -8,8 +8,9 @@ board involved. It ships with:
   Greenhouse application form asks for (contact info, resume upload, links, work
   authorization, EEOC self-identification, etc).
 - A small **web UI** (`public/index.html`) where you paste/edit a JSON applicant profile,
-  pick a fill strategy, and watch a live log while a headless browser fills out and submits
-  the form.
+  pick a fill strategy, and watch it live: a `<canvas>` streams a screenshot after every
+  action a headless browser takes, so you see each field get filled and the form get
+  submitted in near-real-time, alongside a text log of what's happening.
 - Two interchangeable automation strategies:
   - **Heuristic** — plain [Playwright](https://playwright.dev/), matches each form field to a
     profile value by its `<label>` text. Deterministic, free, but brittle if the form's
@@ -86,9 +87,10 @@ src/
   types.ts                  ApplicantProfile / event types
   sampleProfile.ts          Placeholder applicant profile
   automation/
-    runApplication.ts       Picks a strategy, manages screenshots, streams progress events
+    runApplication.ts       Picks a strategy, streams log + live-frame + result events
     heuristicStrategy.ts    Playwright-only, label-matching fill
     stagehandStrategy.ts    Stagehand (AI) fill
+    liveView.ts             Shared viewport size + per-step JPEG screenshot capture
 public/
   index.html, app.js, styles.css   Demo UI
   mock-job.html, mock-job.js       The target Greenhouse-style application form

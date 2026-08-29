@@ -1,6 +1,4 @@
 node_modules/
 dist/
 .env
-public/screenshots/*
-!public/screenshots/.gitkeep
 *.log

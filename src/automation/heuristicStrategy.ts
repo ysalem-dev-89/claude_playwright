@@ -1,13 +1,13 @@
 import path from "node:path";
 import { chromium } from "playwright";
 import { ApplicantProfile } from "../types";
-import { RunLogger } from "./logger";
+import { RunLogger, FrameEmitter } from "./logger";
 import { resolveChromiumExecutablePath } from "./browserPath";
+import { LIVE_VIEW_VIEWPORT, captureFrame } from "./liveView";
 
 export interface StrategyResult {
   success: boolean;
   message: string;
-  screenshotPath: string;
   confirmationText?: string;
 }
 
@@ -23,6 +23,10 @@ interface TextField {
 }
 type Field = SelectField | TextField;
 
+// Heuristic fills happen near-instantly; pause briefly after each step so the live view is
+// actually watchable instead of flashing by in a single frame.
+const STEP_PAUSE_MS = 200;
+
 /**
  * Deterministic, non-AI baseline: matches each form field to a profile value purely by the
  * <label> text Playwright's accessible-name matching finds. No LLM involved — this is the
@@ -31,16 +35,17 @@ type Field = SelectField | TextField;
 export async function runHeuristicApplication(
   profile: ApplicantProfile,
   jobUrl: string,
-  screenshotPath: string,
   log: RunLogger,
+  frame: FrameEmitter,
 ): Promise<StrategyResult> {
   log("info", "Launching local Chromium via Playwright (no AI involved in this mode)...");
   const browser = await chromium.launch({ executablePath: resolveChromiumExecutablePath(), headless: true });
 
   try {
-    const page = await browser.newPage();
+    const page = await browser.newPage({ viewport: LIVE_VIEW_VIEWPORT });
     log("info", `Navigating to job application form: ${jobUrl}`);
     await page.goto(jobUrl, { waitUntil: "domcontentloaded" });
+    await captureFrame(page, frame);
 
     const fields: Field[] = [
       { kind: "text", labelPattern: /^first name/i, value: profile.personal.firstName },
@@ -82,6 +87,8 @@ export async function runHeuristicApplication(
           await locator.selectOption({ label: field.value });
           log("info", `Selected "${field.value}" for "${field.labelPattern.source}"`);
         }
+        await page.waitForTimeout(STEP_PAUSE_MS);
+        await captureFrame(page, frame);
       } catch (err) {
         log("warn", `Could not match a field for "${field.labelPattern.source}" — skipping (${(err as Error).message.split("\n")[0]})`);
       }
@@ -90,19 +97,19 @@ export async function runHeuristicApplication(
     const resumePath = path.resolve(process.cwd(), profile.resume.filePath);
     log("info", `Uploading resume: ${profile.resume.fileName}`);
     await page.getByLabel(/resume\/cv/i).setInputFiles(resumePath);
+    await page.waitForTimeout(STEP_PAUSE_MS);
+    await captureFrame(page, frame);
 
     log("info", "Submitting application...");
     await page.getByRole("button", { name: /submit application/i }).click();
 
     await page.locator("#confirmation-panel").waitFor({ state: "visible", timeout: 5000 });
     const confirmationText = await page.locator("#confirmation-panel").innerText();
-
-    await page.screenshot({ path: screenshotPath, fullPage: true });
+    await captureFrame(page, frame);
 
     return {
       success: true,
       message: "Application submitted successfully using the heuristic (non-AI) strategy.",
-      screenshotPath,
       confirmationText,
     };
   } finally {

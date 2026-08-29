@@ -11,14 +11,14 @@
     <header class="app-header">
       <h1>Greenhouse Auto-Apply Demo</h1>
       <p>
-        Edit the applicant profile below, pick a fill strategy, then watch a headless browser
-        apply to the mock Greenhouse-style job posting.
+        Edit the applicant profile below, pick a fill strategy, then watch it fill out and
+        submit the mock Greenhouse-style job posting live.
         <a href="/mock-job.html" target="_blank" rel="noopener">View the target job posting ↗</a>
       </p>
     </header>
 
     <main class="layout">
-      <section class="panel">
+      <section class="panel form-panel">
         <h2>Applicant profile (JSON)</h2>
         <p class="hint">This is a placeholder profile. Replace it with the real one whenever you have it — the
           parsing logic doesn't change.</p>
@@ -48,14 +48,19 @@
         <button id="apply-btn" class="apply-btn">Apply to Job</button>
       </section>
 
-      <section class="panel">
+      <section class="panel canvas-panel">
+        <h2>Live browser view</h2>
+        <div class="canvas-frame">
+          <canvas id="live-canvas" width="960" height="720"></canvas>
+          <div id="canvas-placeholder" class="canvas-placeholder">Click "Apply to Job" to watch it fill the form live.</div>
+        </div>
+
         <h2>Run log</h2>
         <div id="log" class="log"></div>
 
         <div id="result" class="result" hidden>
           <h2>Result</h2>
           <div id="result-message"></div>
-          <img id="result-screenshot" alt="Final page screenshot" hidden />
           <pre id="result-confirmation" hidden></pre>
         </div>
       </section>

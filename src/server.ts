@@ -1,5 +1,4 @@
 import "dotenv/config";
-import fs from "node:fs";
 import path from "node:path";
 import express from "express";
 import { sampleProfile } from "./sampleProfile";
@@ -8,9 +7,6 @@ import { ApplyRequest, RunEvent } from "./types";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
-
-const screenshotDir = path.resolve(process.cwd(), "public", "screenshots");
-fs.mkdirSync(screenshotDir, { recursive: true });
 
 app.use(express.json());
 app.use(express.static(path.resolve(process.cwd(), "public")));

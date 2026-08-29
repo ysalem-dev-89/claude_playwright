@@ -3,10 +3,12 @@ const applyBtn = document.getElementById("apply-btn");
 const logEl = document.getElementById("log");
 const resultEl = document.getElementById("result");
 const resultMessageEl = document.getElementById("result-message");
-const resultScreenshotEl = document.getElementById("result-screenshot");
 const resultConfirmationEl = document.getElementById("result-confirmation");
 const aiOption = document.getElementById("ai-option");
 const aiKeyHint = document.getElementById("ai-key-hint");
+const canvas = document.getElementById("live-canvas");
+const canvasCtx = canvas.getContext("2d");
+const canvasPlaceholder = document.getElementById("canvas-placeholder");
 
 init();
 
@@ -34,6 +36,8 @@ applyBtn.addEventListener("click", async () => {
 
   logEl.innerHTML = "";
   resultEl.hidden = true;
+  canvasPlaceholder.hidden = true;
+  canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
   applyBtn.disabled = true;
   applyBtn.textContent = "Applying...";
 
@@ -71,17 +75,12 @@ applyBtn.addEventListener("click", async () => {
 function handleEvent(event) {
   if (event.type === "log") {
     appendLog(event.level, event.message, event.timestamp);
+  } else if (event.type === "frame") {
+    drawFrame(event.imageDataUrl);
   } else if (event.type === "done") {
     resultEl.hidden = false;
     resultMessageEl.textContent = event.message;
     resultMessageEl.className = event.success ? "ok" : "fail";
-
-    if (event.screenshotUrl) {
-      resultScreenshotEl.src = `${event.screenshotUrl}?t=${Date.now()}`;
-      resultScreenshotEl.hidden = false;
-    } else {
-      resultScreenshotEl.hidden = true;
-    }
 
     if (event.confirmationText) {
       resultConfirmationEl.textContent = event.confirmationText;
@@ -90,6 +89,12 @@ function handleEvent(event) {
       resultConfirmationEl.hidden = true;
     }
   }
+}
+
+function drawFrame(dataUrl) {
+  const img = new Image();
+  img.onload = () => canvasCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  img.src = dataUrl;
 }
 
 function appendLog(level, message, timestamp) {

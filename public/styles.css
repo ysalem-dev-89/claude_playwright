@@ -6,13 +6,13 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   color: #1a1a1a;
 }
-.app { max-width: 1160px; margin: 0 auto; padding: 32px 24px 60px; }
+.app { max-width: 1440px; margin: 0 auto; padding: 32px 24px 60px; }
 .app-header h1 { font-size: 24px; margin: 0 0 8px; }
 .app-header p { color: #57606a; font-size: 14px; max-width: 720px; line-height: 1.6; }
 .app-header a { color: #0a5cd8; }
 
-.layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; align-items: start; }
-@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+.layout { display: grid; grid-template-columns: 380px 1fr; gap: 24px; margin-top: 24px; align-items: start; }
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
 
 .panel {
   background: #fff;
@@ -69,8 +69,8 @@ body {
 .apply-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .log {
-  min-height: 200px;
-  max-height: 420px;
+  min-height: 140px;
+  max-height: 260px;
   overflow-y: auto;
   background: #0d1117;
   color: #c9d1d9;
@@ -92,7 +92,6 @@ body {
 #result-message { font-size: 14px; margin-bottom: 12px; }
 #result-message.ok { color: #1a7f37; }
 #result-message.fail { color: #cf222e; }
-#result-screenshot { width: 100%; border: 1px solid #e1e4e8; border-radius: 8px; margin-top: 10px; }
 #result-confirmation {
   background: #f6f8fa;
   border: 1px solid #e1e4e8;
@@ -102,3 +101,25 @@ body {
   white-space: pre-wrap;
   margin-top: 10px;
 }
+
+.canvas-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 960 / 720;
+  background: #0d1117;
+  border-radius: 8px;
+  overflow: hidden;
+}
+#live-canvas { width: 100%; height: 100%; display: block; }
+.canvas-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  color: #6e7681;
+  font-size: 13px;
+}
+.canvas-placeholder[hidden] { display: none; }

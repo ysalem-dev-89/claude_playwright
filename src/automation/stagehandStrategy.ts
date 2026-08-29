@@ -2,9 +2,10 @@ import path from "node:path";
 import { Stagehand } from "@browserbasehq/stagehand";
 import { z } from "zod";
 import { ApplicantProfile } from "../types";
-import { RunLogger } from "./logger";
+import { RunLogger, FrameEmitter } from "./logger";
 import { StrategyResult } from "./heuristicStrategy";
 import { resolveChromiumExecutablePath } from "./browserPath";
+import { LIVE_VIEW_VIEWPORT, captureFrame } from "./liveView";
 
 /**
  * AI-powered strategy: describes each field in plain English and lets Stagehand's act()
@@ -16,8 +17,8 @@ import { resolveChromiumExecutablePath } from "./browserPath";
 export async function runAiApplication(
   profile: ApplicantProfile,
   jobUrl: string,
-  screenshotPath: string,
   log: RunLogger,
+  frame: FrameEmitter,
 ): Promise<StrategyResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error(
@@ -30,7 +31,7 @@ export async function runAiApplication(
     env: "LOCAL",
     modelName: (process.env.STAGEHAND_MODEL as never) || "claude-3-7-sonnet-latest",
     modelClientOptions: { apiKey: process.env.ANTHROPIC_API_KEY },
-    localBrowserLaunchOptions: { executablePath: resolveChromiumExecutablePath(), headless: true },
+    localBrowserLaunchOptions: { executablePath: resolveChromiumExecutablePath(), headless: true, viewport: LIVE_VIEW_VIEWPORT },
     disablePino: true,
     verbose: 0,
   });
@@ -41,6 +42,7 @@ export async function runAiApplication(
 
     log("info", `Navigating to job application form: ${jobUrl}`);
     await page.goto(jobUrl, { waitUntil: "domcontentloaded" });
+    await captureFrame(page, frame);
 
     const instructions: string[] = [
       `Type "${profile.personal.firstName}" into the First Name field`,
@@ -71,6 +73,7 @@ export async function runAiApplication(
       log("info", `AI action: ${instruction}`);
       try {
         await page.act(instruction);
+        await captureFrame(page, frame);
       } catch (err) {
         log("warn", `AI could not complete: "${instruction}" (${(err as Error).message.split("\n")[0]})`);
       }
@@ -79,11 +82,13 @@ export async function runAiApplication(
     const resumePath = path.resolve(process.cwd(), profile.resume.filePath);
     log("info", `Uploading resume via direct Playwright call: ${profile.resume.fileName}`);
     await page.getByLabel(/resume\/cv/i).setInputFiles(resumePath);
+    await captureFrame(page, frame);
 
     log("info", "AI action: Click the Submit Application button");
     await page.act("Click the Submit Application button");
 
     await page.locator("#confirmation-panel").waitFor({ state: "visible", timeout: 8000 });
+    await captureFrame(page, frame);
 
     log("info", "Extracting confirmation details with AI...");
     const { confirmationHeading, summaryText } = await page.extract({
@@ -94,12 +99,9 @@ export async function runAiApplication(
       }),
     });
 
-    await page.screenshot({ path: screenshotPath, fullPage: true });
-
     return {
       success: true,
       message: "Application submitted successfully using the AI (Stagehand) strategy.",
-      screenshotPath,
       confirmationText: `${confirmationHeading}\n${summaryText}`,
     };
   } finally {

@@ -43,10 +43,10 @@ export interface ApplyRequest {
 
 export type RunEvent =
   | { type: "log"; level: "info" | "success" | "warn" | "error"; message: string; timestamp: number }
+  | { type: "frame"; imageDataUrl: string; timestamp: number }
   | {
       type: "done";
       success: boolean;
       message: string;
-      screenshotUrl?: string;
       confirmationText?: string;
     };
