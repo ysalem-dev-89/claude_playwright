@@ -4,8 +4,7 @@ import { z } from "zod";
 import { ApplicantProfile } from "../types";
 import { RunLogger } from "./logger";
 import { StrategyResult } from "./heuristicStrategy";
-
-const CHROMIUM_PATH = "/opt/pw-browsers/chromium";
+import { resolveChromiumExecutablePath } from "./browserPath";
 
 /**
  * AI-powered strategy: describes each field in plain English and lets Stagehand's act()
@@ -31,7 +30,7 @@ export async function runAiApplication(
     env: "LOCAL",
     modelName: (process.env.STAGEHAND_MODEL as never) || "claude-3-7-sonnet-latest",
     modelClientOptions: { apiKey: process.env.ANTHROPIC_API_KEY },
-    localBrowserLaunchOptions: { executablePath: CHROMIUM_PATH, headless: true },
+    localBrowserLaunchOptions: { executablePath: resolveChromiumExecutablePath(), headless: true },
     disablePino: true,
     verbose: 0,
   });

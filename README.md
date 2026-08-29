@@ -37,6 +37,7 @@ TypeScript project.
 
 ```bash
 npm install
+npx playwright install chromium   # one-time browser download
 cp .env.example .env   # optional, only needed for the AI strategy
 npm run dev
 ```
@@ -96,7 +97,9 @@ sample-data/resume.txt      Placeholder resume uploaded during the demo
 
 ## Notes
 
-- The pre-installed Chromium binary is used directly (`/opt/pw-browsers/chromium`) rather
-  than triggering a Playwright browser download.
+- Browser launching resolves to a pre-installed Chromium binary at `/opt/pw-browsers/chromium`
+  when present (this project's cloud dev sandbox ships one there); everywhere else — including
+  a normal local checkout — it falls back to the Chromium Playwright installs itself via
+  `npx playwright install chromium`.
 - `/api/apply` streams newline-delimited JSON (NDJSON) so the UI can show progress live
   instead of waiting for the whole run to finish.

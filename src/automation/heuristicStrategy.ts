@@ -2,8 +2,7 @@ import path from "node:path";
 import { chromium } from "playwright";
 import { ApplicantProfile } from "../types";
 import { RunLogger } from "./logger";
-
-const CHROMIUM_PATH = "/opt/pw-browsers/chromium";
+import { resolveChromiumExecutablePath } from "./browserPath";
 
 export interface StrategyResult {
   success: boolean;
@@ -36,7 +35,7 @@ export async function runHeuristicApplication(
   log: RunLogger,
 ): Promise<StrategyResult> {
   log("info", "Launching local Chromium via Playwright (no AI involved in this mode)...");
-  const browser = await chromium.launch({ executablePath: CHROMIUM_PATH, headless: true });
+  const browser = await chromium.launch({ executablePath: resolveChromiumExecutablePath(), headless: true });
 
   try {
     const page = await browser.newPage();
