@@ -120,6 +120,51 @@ public/
 sample-data/resume.txt      Placeholder resume uploaded during the demo
 ```
 
+## Controlling Claude Code from WhatsApp
+
+The server also exposes a small **WhatsApp -> Claude Code bridge**: text a message
+to your WhatsApp Business number and it's run as a prompt against a real Claude
+Code session (via the [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview)),
+with the final response texted back. Each phone number gets its own persistent
+session (via `resume`), so a conversation can span multiple messages.
+
+**This grants shell and filesystem access on this machine to whoever texts an
+allowlisted number.** Only enable it for your own number, on a machine you're
+comfortable letting yourself remote-control.
+
+### Setup
+
+1. Create a [Meta developer app](https://developers.facebook.com/apps/) with the
+   **WhatsApp** product added. The "API Setup" page gives you a temporary access
+   token, a test phone number, and a **Phone Number ID**.
+2. Set in `.env`:
+   - `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` — from API Setup.
+   - `WHATSAPP_APP_SECRET` — from the app's Settings > Basic page.
+   - `WHATSAPP_VERIFY_TOKEN` — any string you make up.
+   - `WHATSAPP_ALLOWED_NUMBERS` — your phone number(s), comma-separated, no `+`
+     (e.g. `15551234567`). **Required** — every other sender is ignored.
+3. Expose this server's `/webhook/whatsapp` publicly (e.g. `ngrok http 3000` while
+   developing) and configure that URL + your `WHATSAPP_VERIFY_TOKEN` as the app's
+   webhook callback, subscribed to the `messages` field.
+4. From WhatsApp, message your test number. You'll get a quick "Working on it..."
+   ack, then Claude Code's reply once the turn finishes.
+
+### How it works
+
+- `src/whatsapp/routes.ts` — `/webhook/whatsapp` GET (Meta's verification
+  handshake) and POST (verifies `X-Hub-Signature-256` against `WHATSAPP_APP_SECRET`
+  using the raw request body, acks immediately since Claude Code turns can run
+  long, then processes the message asynchronously).
+- `src/whatsapp/security.ts` — the sender allowlist and webhook signature check.
+- `src/whatsapp/agentRunner.ts` — runs one turn via `query()` from
+  `@anthropic-ai/claude-agent-sdk` with `permissionMode: "bypassPermissions"`
+  (there's no one to interactively approve a tool-use prompt from WhatsApp),
+  scoped to a dedicated `whatsapp-workspace/` working directory, and keeps a
+  per-sender session id for multi-turn continuity. Messages from the same sender
+  are queued so two never drive the same session concurrently.
+- `src/whatsapp/whatsappClient.ts` — sends replies via the Cloud API's `/messages`
+  endpoint, splitting anything over WhatsApp's 4096-character limit.
+
 ## Notes
 
 - Browser launching resolves to a pre-installed Chromium binary at `/opt/pw-browsers/chromium`

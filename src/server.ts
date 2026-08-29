@@ -10,12 +10,23 @@ import { clickSubmit, waitForConfirmation } from "./automation/formActions";
 import { captureFrameDataUrl } from "./automation/liveView";
 import { ApplicantProfile, CreateSessionRequest, FillRequest, RunEvent } from "./types";
 import { RunLogger } from "./automation/logger";
+import { registerWhatsAppRoutes } from "./whatsapp/routes";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json());
+app.use(
+  express.json({
+    // Stashes the raw bytes alongside the parsed body so the WhatsApp webhook route
+    // can verify Meta's X-Hub-Signature-256 header against the exact payload sent.
+    verify: (req, _res, buf) => {
+      (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+    },
+  })
+);
 app.use(express.static(path.resolve(process.cwd(), "public")));
+
+registerWhatsAppRoutes(app);
 
 app.get("/api/sample-profile", (_req, res) => {
   res.json(sampleProfile);
