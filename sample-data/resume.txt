@@ -1,0 +1,20 @@
+JORDAN RIVERA
+San Francisco, CA · jordan.rivera@example.com · +1-555-013-4892
+linkedin.com/in/jordan-rivera-dev · github.com/jordanrivera
+
+This is a placeholder resume used by the Greenhouse application demo.
+Replace sample-data/resume.txt (or point ApplicantProfile.resume.filePath
+at a real .pdf/.docx) with an actual resume file for real use.
+
+EXPERIENCE
+----------
+Senior Software Engineer, Example Corp (2021–Present)
+- Built and shipped developer tooling used by 200+ engineers.
+- Led migration of core services to a distributed architecture.
+
+Software Engineer, Sample Inc (2018–2021)
+- Shipped full-stack features end-to-end across web and API layers.
+
+EDUCATION
+---------
+B.S. Computer Science, State University (2018)

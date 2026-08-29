@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Senior Product Engineer — Nova Robotics</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #f4f5f7;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #1a1a1a;
+  }
+  header.company-header {
+    background: #0a5cd8;
+    color: #fff;
+    padding: 28px 24px;
+  }
+  .header-inner { max-width: 760px; margin: 0 auto; }
+  .company-name { font-size: 14px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.85; }
+  .job-title { font-size: 26px; font-weight: 700; margin: 6px 0 4px; }
+  .job-meta { font-size: 14px; opacity: 0.9; }
+  main { max-width: 760px; margin: 0 auto; padding: 28px 24px 80px; }
+  .card {
+    background: #fff;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 28px;
+  }
+  h2.section-title {
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #57606a;
+    margin: 32px 0 16px;
+    padding-top: 20px;
+    border-top: 1px solid #eaecef;
+  }
+  .card > h2.section-title:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+  .field { margin-bottom: 18px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #24292f; }
+  label .required { color: #cf222e; margin-left: 2px; }
+  input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="date"],
+  textarea, select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+    color: #1a1a1a;
+  }
+  input:focus, textarea:focus, select:focus { outline: 2px solid #0a5cd8; outline-offset: 1px; }
+  textarea { resize: vertical; min-height: 90px; }
+  .file-drop {
+    border: 2px dashed #d0d7de;
+    border-radius: 8px;
+    padding: 18px;
+    text-align: center;
+    font-size: 13px;
+    color: #57606a;
+    background: #f9fafb;
+  }
+  .file-drop.has-file { border-color: #1a7f37; background: #f0fdf4; color: #1a7f37; font-weight: 600; }
+  .file-drop input[type="file"] { display: block; margin: 10px auto 0; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .hint { font-size: 12px; color: #6e7781; margin-top: 4px; }
+  button.submit-btn {
+    width: 100%;
+    background: #0a5cd8;
+    color: #fff;
+    border: none;
+    padding: 13px 16px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+  button.submit-btn:hover { background: #084bb3; }
+  .validation-error { color: #cf222e; font-size: 13px; margin-top: 16px; display: none; }
+  #confirmation-panel {
+    display: none;
+    text-align: center;
+    padding: 40px 20px;
+  }
+  #confirmation-panel .check {
+    font-size: 44px;
+    margin-bottom: 12px;
+  }
+  #confirmation-panel h2 {
+    font-size: 22px;
+    margin: 0 0 8px;
+    border: none;
+    padding: 0;
+    text-transform: none;
+    color: #1a1a1a;
+  }
+  #confirmation-panel p { color: #57606a; margin: 0 0 24px; }
+  #applicant-summary {
+    text-align: left;
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 18px 20px;
+    font-size: 13px;
+    line-height: 1.9;
+  }
+  #applicant-summary strong { display: inline-block; min-width: 150px; color: #24292f; }
+</style>
+</head>
+<body>
+  <header class="company-header">
+    <div class="header-inner">
+      <div class="company-name">Nova Robotics</div>
+      <div class="job-title">Senior Product Engineer</div>
+      <div class="job-meta">Remote · Engineering · Full-time</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <form id="application-form" novalidate>
+        <h2 class="section-title">Your Information</h2>
+
+        <div class="row-2">
+          <div class="field">
+            <label for="first_name">First Name<span class="required">*</span></label>
+            <input type="text" id="first_name" name="first_name" required />
+          </div>
+          <div class="field">
+            <label for="last_name">Last Name<span class="required">*</span></label>
+            <input type="text" id="last_name" name="last_name" required />
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label for="email">Email<span class="required">*</span></label>
+            <input type="email" id="email" name="email" required />
+          </div>
+          <div class="field">
+            <label for="phone">Phone<span class="required">*</span></label>
+            <input type="tel" id="phone" name="phone" required />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="location">Current Location (City, State/Country)</label>
+          <input type="text" id="location" name="location" />
+        </div>
+
+        <div class="field">
+          <label for="resume">Resume/CV<span class="required">*</span></label>
+          <div class="file-drop" id="resume-drop">
+            <div id="resume-drop-label">Attach your resume (PDF, DOCX, or TXT)</div>
+            <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx,.txt" required />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="cover_letter">Cover Letter</label>
+          <textarea id="cover_letter" name="cover_letter" placeholder="Tell us why you're a great fit..."></textarea>
+        </div>
+
+        <h2 class="section-title">Links</h2>
+
+        <div class="field">
+          <label for="linkedin">LinkedIn Profile</label>
+          <input type="url" id="linkedin" name="linkedin" placeholder="https://linkedin.com/in/..." />
+        </div>
+        <div class="field">
+          <label for="portfolio">Website / Portfolio</label>
+          <input type="url" id="portfolio" name="portfolio" placeholder="https://..." />
+        </div>
+        <div class="field">
+          <label for="github">GitHub</label>
+          <input type="url" id="github" name="github" placeholder="https://github.com/..." />
+        </div>
+
+        <h2 class="section-title">Additional Information</h2>
+
+        <div class="field">
+          <label for="work_authorization">Are you legally authorized to work in the United States?<span class="required">*</span></label>
+          <select id="work_authorization" name="work_authorization" required>
+            <option value="">Select...</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="sponsorship">Will you now or in the future require visa sponsorship for employment?<span class="required">*</span></label>
+          <select id="sponsorship" name="sponsorship" required>
+            <option value="">Select...</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label for="desired_salary">Desired Salary</label>
+            <input type="text" id="desired_salary" name="desired_salary" placeholder="e.g. $150,000" />
+          </div>
+          <div class="field">
+            <label for="start_date">Earliest Start Date</label>
+            <input type="date" id="start_date" name="start_date" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="referral_source">How did you hear about this job?</label>
+          <select id="referral_source" name="referral_source">
+            <option value="">Select...</option>
+            <option value="LinkedIn">LinkedIn</option>
+            <option value="Company Website">Company Website</option>
+            <option value="Employee Referral">Employee Referral</option>
+            <option value="Job Board">Job Board</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <h2 class="section-title">Voluntary Self-Identification</h2>
+        <p class="hint" style="margin-top: -8px; margin-bottom: 18px;">
+          Completion of this section is voluntary and will not affect your application.
+        </p>
+
+        <div class="field">
+          <label for="gender">Gender</label>
+          <select id="gender" name="gender">
+            <option value="">Select...</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Non-Binary">Non-Binary</option>
+            <option value="Decline To Self Identify">Decline To Self Identify</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="race_ethnicity">Race / Ethnicity</label>
+          <select id="race_ethnicity" name="race_ethnicity">
+            <option value="">Select...</option>
+            <option value="Hispanic or Latino">Hispanic or Latino</option>
+            <option value="White">White</option>
+            <option value="Black or African American">Black or African American</option>
+            <option value="Asian">Asian</option>
+            <option value="Two or More Races">Two or More Races</option>
+            <option value="Decline To Self Identify">Decline To Self Identify</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="veteran_status">Veteran Status</label>
+          <select id="veteran_status" name="veteran_status">
+            <option value="">Select...</option>
+            <option value="I identify as one or more of the classifications of a protected veteran">
+              I identify as one or more of the classifications of a protected veteran
+            </option>
+            <option value="I am not a protected veteran">I am not a protected veteran</option>
+            <option value="I don't wish to answer">I don't wish to answer</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="disability_status">Disability Status</label>
+          <select id="disability_status" name="disability_status">
+            <option value="">Select...</option>
+            <option value="Yes, I have a disability, or have had one in the past">
+              Yes, I have a disability, or have had one in the past
+            </option>
+            <option value="No, I do not have a disability">No, I do not have a disability</option>
+            <option value="I don't wish to answer">I don't wish to answer</option>
+          </select>
+        </div>
+
+        <div class="validation-error" id="validation-error">Please fill in all required fields before submitting.</div>
+
+        <button type="submit" class="submit-btn">Submit Application</button>
+      </form>
+
+      <div id="confirmation-panel">
+        <div class="check">✅</div>
+        <h2 id="confirmation-message">Application submitted!</h2>
+        <p>Thanks for applying to Nova Robotics — we'll be in touch soon.</p>
+        <div id="applicant-summary"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="mock-job.js"></script>
+</body>
+</html>
