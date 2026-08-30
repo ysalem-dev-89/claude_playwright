@@ -87,8 +87,43 @@ python apply.py "<job url>" --submit --yes --profile my-profile.json
 | `--strategy {auto,ai}` | `auto` (default): reuse the cache if present, else discover via AI and save it. `ai`: always re-discover fresh this run (still updates the cache). |
 | `--submit` | Click Submit after filling. Without it the script only fills and leaves the form for you to review. |
 | `--yes` | Skip the "are you sure" prompt before a real `--submit`. |
-| `--model` | Override the model used for discovery/repair (default `claude-3-7-sonnet-latest`, or `$STAGEHAND_MODEL`). |
+| `--model` | `<provider>/<model>` string (default `anthropic/claude-3-7-sonnet-latest`, or `$STAGEHAND_MODEL`). See **Choosing an LLM provider** below. |
+| `--api-key` | Pass the model API key directly instead of via env var (useful for a provider not in the built-in table, or a differently-named key). |
 | `--cache-dir` | Override where the field-map cache is stored (default: `python/cache/`). |
+
+## Choosing an LLM provider
+
+Stagehand resolves models through [litellm](https://docs.litellm.ai/docs/providers), so any
+provider litellm supports works here — pass `--model <provider>/<model>` and set that provider's
+API key. The script reads the key from the matching env var automatically based on the provider
+prefix in `--model`; no code changes needed to switch providers.
+
+| Provider | `--model` example | Env var |
+|---|---|---|
+| Anthropic (default) | `anthropic/claude-3-7-sonnet-latest` | `ANTHROPIC_API_KEY` |
+| OpenAI | `openai/gpt-4o` | `OPENAI_API_KEY` |
+| Novita | `novita/deepseek/deepseek-v3` (see [novita.ai/models](https://novita.ai/models) for IDs) | `NOVITA_API_KEY` |
+| Google | `gemini/gemini-2.0-flash` | `GOOGLE_API_KEY` |
+| Groq | `groq/llama-3.3-70b-versatile` | `GROQ_API_KEY` |
+| OpenRouter | `openrouter/<model>` | `OPENROUTER_API_KEY` |
+
+```bash
+# OpenAI instead of the default:
+python apply.py "<job url>" --model openai/gpt-4o --debug --profile my-profile.json
+
+# Novita:
+python apply.py "<job url>" --model novita/deepseek/deepseek-v3 --debug --profile my-profile.json
+```
+
+Set only the env var for the provider you're actually using in `.env` (see `.env.example`) — you
+don't need every key populated, just the one matching `--model`. For a provider not in the table
+above, the script derives the env var name as `<PROVIDER>_API_KEY`; if that's wrong for your
+provider, pass `--api-key` directly instead.
+
+Note: the discovery step asks the model to return structured JSON (a Pydantic schema) via
+function/tool calling, so it works best with models that support that reliably — the frontier
+models from each provider above do. A smaller/less capable model may parse forms less accurately
+and lean more on the AI-repair fallback during filling.
 
 ## What was and wasn't verified here
 

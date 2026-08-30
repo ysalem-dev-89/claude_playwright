@@ -40,6 +40,39 @@ from agent.schema import ApplicantProfile, DiscoveredForm
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_PROFILE_PATH = SCRIPT_DIR / "profile.example.json"
 
+# Stagehand resolves models through litellm, so any "<provider>/<model>" string litellm supports
+# works here — this just maps the provider prefix to the env var litellm reads for it, so we can
+# fail with a clear, provider-specific message instead of "ANTHROPIC_API_KEY is not set" no
+# matter which provider you actually picked.
+PROVIDER_ENV_VARS = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "novita": "NOVITA_API_KEY",
+    "google": "GOOGLE_API_KEY",
+    "gemini": "GOOGLE_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "azure": "AZURE_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    "together_ai": "TOGETHERAI_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+    "mistral": "MISTRAL_API_KEY",
+    "xai": "XAI_API_KEY",
+}
+
+
+def resolve_provider(model_name: str) -> str:
+    """Everything before the first "/" is the provider, e.g. "novita/deepseek/deepseek-v3" ->
+    "novita". A bare model name with no prefix is assumed to be Anthropic or OpenAI based on its
+    naming convention, matching how litellm itself infers it."""
+    if "/" in model_name:
+        return model_name.split("/", 1)[0].lower()
+    lowered = model_name.lower()
+    if lowered.startswith(("gpt-", "o1", "o3", "o4", "chatgpt")):
+        return "openai"
+    if lowered.startswith("gemini"):
+        return "google"
+    return "anthropic"
+
 
 def log(message: str) -> None:
     print(f"[apply] {message}", flush=True)
@@ -75,8 +108,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--yes", action="store_true", help="Skip the confirmation prompt before a real --submit.")
     parser.add_argument(
         "--model",
-        default=os.environ.get("STAGEHAND_MODEL", "claude-3-7-sonnet-latest"),
-        help="Model to use for parsing/repair (default: claude-3-7-sonnet-latest).",
+        default=os.environ.get("STAGEHAND_MODEL", "anthropic/claude-3-7-sonnet-latest"),
+        help="Model to use for parsing/repair, as '<provider>/<model>' (e.g. 'openai/gpt-4o', "
+        "'anthropic/claude-3-7-sonnet-latest', 'novita/deepseek/deepseek-v3'). Default: "
+        "anthropic/claude-3-7-sonnet-latest, or $STAGEHAND_MODEL. The matching provider's API "
+        "key env var must be set (see --help output for python/README.md's provider table).",
+    )
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Override the model API key directly instead of reading it from the provider's "
+        "usual env var (e.g. for a provider not in the built-in list, or a differently-named key).",
     )
     parser.add_argument("--cache-dir", default=str(DEFAULT_CACHE_DIR), help="Where learned field maps are stored.")
     return parser.parse_args()
@@ -122,9 +164,13 @@ async def get_or_discover_form(page, url: str, cache_dir: Path, strategy: str) -
 
 async def run(args: argparse.Namespace) -> int:
     load_dotenv(SCRIPT_DIR / ".env")
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+
+    provider = resolve_provider(args.model)
+    env_var = PROVIDER_ENV_VARS.get(provider, f"{provider.upper()}_API_KEY")
+    api_key = args.api_key or os.environ.get(env_var)
     if not api_key:
-        log("ERROR: ANTHROPIC_API_KEY is not set. Copy python/.env.example to python/.env and add your key.")
+        log(f"ERROR: {env_var} is not set (required for --model {args.model}, provider '{provider}').")
+        log(f"Copy python/.env.example to python/.env and set {env_var}=..., or pass --api-key directly.")
         return 1
 
     profile = load_profile(args.profile)
