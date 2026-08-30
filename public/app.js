@@ -2,6 +2,7 @@ const profileTextarea = document.getElementById("profile-json");
 const jobUrlInput = document.getElementById("job-url");
 const openPostingLink = document.getElementById("open-posting-link");
 const externalHintEl = document.getElementById("external-hint");
+const realSubmissionHintEl = document.getElementById("real-submission-hint");
 const fillBtn = document.getElementById("fill-btn");
 const submitBtn = document.getElementById("submit-btn");
 const autoSubmitToggle = document.getElementById("auto-submit-toggle");
@@ -15,9 +16,13 @@ const canvas = document.getElementById("live-canvas");
 const canvasCtx = canvas.getContext("2d");
 const liveStatusEl = document.getElementById("live-status");
 
+const PLATFORM_LABELS = { greenhouse: "Greenhouse", workday: "Workday", workable: "Workable" };
+const PLATFORM_MOCK_PATH = { greenhouse: "/mock-job.html", workday: "/mock-workday-job.html", workable: "/mock-workable-job.html" };
+
 let sessionId = null;
 let ws = null;
 let isExternal = false;
+let realSubmissionAllowed = false;
 let sessionGeneration = 0;
 
 init();
@@ -41,7 +46,7 @@ async function init() {
 
   document.querySelectorAll('input[name="platform"]').forEach((el) => {
     el.addEventListener("change", () => {
-      appendLog("info", `Switching platform to ${el.value === "workday" ? "Workday" : "Greenhouse"} — resetting the live view.`);
+      appendLog("info", `Switching platform to ${PLATFORM_LABELS[el.value]} — resetting the live view.`);
       updateOpenPostingLink();
       startSession();
     });
@@ -68,7 +73,7 @@ function currentPlatform() {
 
 function updateOpenPostingLink() {
   const custom = jobUrlInput.value.trim();
-  const defaultPath = currentPlatform() === "workday" ? "/mock-workday-job.html" : "/mock-job.html";
+  const defaultPath = PLATFORM_MOCK_PATH[currentPlatform()];
   openPostingLink.href = custom || defaultPath;
   jobUrlInput.placeholder = defaultPath;
 }
@@ -132,15 +137,18 @@ async function startSession() {
 
   sessionId = data.sessionId;
   isExternal = Boolean(data.isExternal);
+  realSubmissionAllowed = Boolean(data.realSubmissionAllowed);
   applyExternalGuard();
   connectWebSocket(sessionId);
 }
 
 function applyExternalGuard() {
-  externalHintEl.hidden = !isExternal;
-  autoSubmitToggle.disabled = isExternal;
-  if (isExternal) autoSubmitToggle.checked = false;
-  submitBtn.disabled = isExternal;
+  const blocked = isExternal && !realSubmissionAllowed;
+  externalHintEl.hidden = !blocked;
+  realSubmissionHintEl.hidden = !(isExternal && realSubmissionAllowed);
+  autoSubmitToggle.disabled = blocked;
+  if (blocked) autoSubmitToggle.checked = false;
+  submitBtn.disabled = blocked;
 }
 
 function connectWebSocket(id) {
@@ -209,6 +217,14 @@ fillBtn.addEventListener("click", async () => {
     return;
   }
 
+  if (isExternal && realSubmissionAllowed && autoSubmitToggle.checked) {
+    const confirmed = confirm("Auto-submit is on for a real posting — this will submit a real application to a real employer as soon as filling finishes. Continue?");
+    if (!confirmed) {
+      appendLog("info", "Fill cancelled.");
+      return;
+    }
+  }
+
   resultEl.hidden = true;
   setButtonsBusy(true);
   fillBtn.textContent = "Filling...";
@@ -255,9 +271,16 @@ submitBtn.addEventListener("click", async () => {
     appendLog("error", "No live session yet — try again in a moment.");
     return;
   }
-  if (isExternal) {
-    appendLog("error", "Submission is disabled for external targets.");
+  if (isExternal && !realSubmissionAllowed) {
+    appendLog("error", "Submission is disabled for external targets on this platform.");
     return;
+  }
+  if (isExternal && realSubmissionAllowed) {
+    const confirmed = confirm("This will submit a real application to a real employer. Continue?");
+    if (!confirmed) {
+      appendLog("info", "Submit cancelled.");
+      return;
+    }
   }
 
   setButtonsBusy(true);
@@ -291,7 +314,7 @@ submitBtn.addEventListener("click", async () => {
 
 function setButtonsBusy(busy) {
   fillBtn.disabled = busy;
-  submitBtn.disabled = busy || isExternal;
+  submitBtn.disabled = busy || (isExternal && !realSubmissionAllowed);
 }
 
 function handleEvent(event) {

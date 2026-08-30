@@ -8,16 +8,24 @@ import { fillHeuristicFields } from "./automation/heuristicStrategy";
 import { fillAiFields } from "./automation/stagehandStrategy";
 import { runWorkdayHeuristicSteps } from "./automation/workdayStrategy";
 import { runWorkdayAiSteps } from "./automation/workdayStagehandStrategy";
+import { fillWorkableApplication } from "./automation/workableStrategy";
+import { fillWorkableApplicationAi } from "./automation/workableStagehandStrategy";
 import { getCredential, saveCredential } from "./automation/credentialStore";
 import { clickSubmit, waitForConfirmation } from "./automation/formActions";
 import { captureFrameDataUrl } from "./automation/liveView";
-import { ApplicantProfile, CreateSessionRequest, FillRequest, RunEvent } from "./types";
+import { ApplicantProfile, CreateSessionRequest, FillRequest, Platform, PLATFORMS_ALLOWING_REAL_SUBMISSION, RunEvent } from "./types";
 import { RunLogger } from "./automation/logger";
 
-const MOCK_JOB_PATH: Record<"greenhouse" | "workday", string> = {
+const MOCK_JOB_PATH: Record<Platform, string> = {
   greenhouse: "/mock-job.html",
   workday: "/mock-workday-job.html",
+  workable: "/mock-workable-job.html",
 };
+
+/** True when this session must never actually reach a real Submit — see PLATFORMS_ALLOWING_REAL_SUBMISSION. */
+function submissionBlocked(session: { isExternal: boolean; platform: Platform }): boolean {
+  return session.isExternal && !PLATFORMS_ALLOWING_REAL_SUBMISSION.has(session.platform);
+}
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -39,8 +47,8 @@ app.post("/api/session", async (req, res) => {
     res.status(400).json({ error: "Request body must include { strategy: 'heuristic' | 'ai' }." });
     return;
   }
-  if (body.platform !== "greenhouse" && body.platform !== "workday") {
-    res.status(400).json({ error: "Request body must include { platform: 'greenhouse' | 'workday' }." });
+  if (body.platform !== "greenhouse" && body.platform !== "workday" && body.platform !== "workable") {
+    res.status(400).json({ error: "Request body must include { platform: 'greenhouse' | 'workday' | 'workable' }." });
     return;
   }
 
@@ -68,7 +76,11 @@ app.post("/api/session", async (req, res) => {
 
   try {
     const session = await createSession(body.strategy, body.platform, jobUrl, isExternal);
-    res.json({ sessionId: session.id, isExternal });
+    res.json({
+      sessionId: session.id,
+      isExternal,
+      realSubmissionAllowed: PLATFORMS_ALLOWING_REAL_SUBMISSION.has(body.platform),
+    });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
   }
@@ -92,7 +104,7 @@ app.post("/api/session/:id/fill", async (req, res) => {
     return;
   }
   const profile = body.profile as ApplicantProfile;
-  const autoSubmit = Boolean(body.autoSubmit) && !session.isExternal;
+  const autoSubmit = Boolean(body.autoSubmit) && !submissionBlocked(session);
 
   res.writeHead(200, {
     "Content-Type": "application/x-ndjson",
@@ -102,8 +114,8 @@ app.post("/api/session/:id/fill", async (req, res) => {
   const emit = (event: RunEvent) => res.write(JSON.stringify(event) + "\n");
   const log: RunLogger = (level, message) => emit({ type: "log", level, message, timestamp: Date.now() });
 
-  if (Boolean(body.autoSubmit) && session.isExternal) {
-    log("warn", "Auto-submit is disabled for external targets — this demo never submits to a real job posting. Fill only.");
+  if (Boolean(body.autoSubmit) && submissionBlocked(session)) {
+    log("warn", "Auto-submit is disabled for external targets on this platform — fill only.");
   }
 
   try {
@@ -118,13 +130,19 @@ app.post("/api/session/:id/fill", async (req, res) => {
         saveCredential(session.hostname, account.email, account.password);
         log("info", `Saved the new account for ${session.hostname} — future runs against this employer will sign in instead of registering again.`);
       }
+    } else if (session.platform === "workable") {
+      if (session.strategy === "ai") await fillWorkableApplicationAi(session.page, profile, log);
+      else await fillWorkableApplication(session.page, profile, log);
     } else if (session.strategy === "ai") {
       await fillAiFields(session.page, profile, log);
     } else {
       await fillHeuristicFields(session.page, profile, log);
     }
 
+    const isRealExternalSubmission = session.isExternal && PLATFORMS_ALLOWING_REAL_SUBMISSION.has(session.platform);
+
     if (autoSubmit) {
+      if (isRealExternalSubmission) log("warn", "Auto-submit is on for a real posting — this will send a real application.");
       log("info", "Submitting application...");
       await clickSubmit(session.page);
       const confirmationText = await waitForConfirmation(session.page);
@@ -135,7 +153,9 @@ app.post("/api/session/:id/fill", async (req, res) => {
       emit({
         type: "done",
         success: true,
-        message: "Fields filled. Click \"Submit Application\" when you're ready (or submit it yourself in the live view).",
+        message: isRealExternalSubmission
+          ? "Fields filled. This is a real posting — review it, then click \"Submit Application\" (or submit it yourself in the live view) only when you're sure."
+          : "Fields filled. Click \"Submit Application\" when you're ready (or submit it yourself in the live view).",
         awaitingManualSubmit: true,
       });
     }
@@ -153,8 +173,8 @@ app.post("/api/session/:id/submit", async (req, res) => {
     res.status(404).json({ error: "Session not found or expired — start a new one." });
     return;
   }
-  if (session.isExternal) {
-    res.status(403).json({ success: false, error: "Submission is disabled for external targets — this demo never submits to a real job posting." });
+  if (submissionBlocked(session)) {
+    res.status(403).json({ success: false, error: "Submission is disabled for external targets on this platform." });
     return;
   }
   try {

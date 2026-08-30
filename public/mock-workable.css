@@ -1,0 +1,107 @@
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #f5f4fa;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  color: #1c1a2e;
+}
+header.company-header {
+  background: #4b3fd6;
+  color: #fff;
+  padding: 28px 24px;
+}
+.header-inner { max-width: 760px; margin: 0 auto; }
+.company-name { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.85; }
+.job-title { font-size: 25px; font-weight: 700; margin: 6px 0 4px; }
+.job-meta { font-size: 13.5px; opacity: 0.9; }
+
+main { max-width: 760px; margin: 0 auto; padding: 24px 24px 80px; }
+.card {
+  background: #fff;
+  border: 1px solid #e2e0f0;
+  border-radius: 10px;
+  padding: 28px;
+}
+.card + .card { margin-top: 20px; }
+
+h2.section-title { font-size: 15px; text-transform: uppercase; letter-spacing: 0.03em; color: #6b6690; margin: 0 0 16px; }
+.card h2.section-title:not(:first-child) { margin-top: 28px; padding-top: 20px; border-top: 1px solid #edecf7; }
+
+.job-description { font-size: 13.5px; line-height: 1.7; color: #383554; }
+.apply-btn {
+  background: #4b3fd6;
+  color: #fff;
+  border: none;
+  padding: 13px 26px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 20px;
+}
+.apply-btn:hover { background: #3c31b8; }
+
+.field { margin-bottom: 18px; }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #262445; }
+label .required { color: #c0392b; margin-left: 2px; }
+label .optional { color: #8b87ab; font-weight: 400; margin-left: 4px; }
+input[type="text"], input[type="email"], input[type="tel"], input[type="url"],
+textarea, select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d6d3ea;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  color: #1c1a2e;
+}
+input:focus, textarea:focus, select:focus { outline: 2px solid #4b3fd6; outline-offset: 1px; }
+textarea { resize: vertical; min-height: 90px; }
+
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.hint { font-size: 12px; color: #6b6690; margin-top: 4px; }
+
+.file-drop {
+  border: 2px dashed #d6d3ea;
+  border-radius: 8px;
+  padding: 18px;
+  text-align: center;
+  font-size: 13px;
+  color: #6b6690;
+  background: #faf9fd;
+}
+.file-drop.has-file { border-color: #1a7f5a; background: #f0fdf6; color: #1a7f5a; font-weight: 600; }
+.file-drop input[type="file"] { display: block; margin: 10px auto 0; }
+
+.submit-btn {
+  width: 100%;
+  background: #4b3fd6;
+  color: #fff;
+  border: none;
+  padding: 13px 16px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.submit-btn:hover { background: #3c31b8; }
+
+.validation-error { color: #c0392b; font-size: 13px; margin-top: 16px; display: none; }
+
+#confirmation-panel { display: none; text-align: center; padding: 40px 20px; }
+#confirmation-panel .check { font-size: 44px; margin-bottom: 12px; }
+#confirmation-panel h2 { font-size: 22px; margin: 0 0 8px; border: none; padding: 0; text-transform: none; color: #1c1a2e; }
+#confirmation-panel p { color: #6b6690; margin: 0 0 24px; }
+#applicant-summary {
+  text-align: left;
+  background: #faf9fd;
+  border: 1px solid #e2e0f0;
+  border-radius: 8px;
+  padding: 18px 20px;
+  font-size: 13px;
+  line-height: 1.9;
+}
+#applicant-summary strong { display: inline-block; min-width: 150px; color: #262445; }

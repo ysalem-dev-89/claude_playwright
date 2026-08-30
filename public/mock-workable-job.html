@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Software Engineer (Remote) — Lumen Software Co</title>
+<link rel="stylesheet" href="mock-workable.css" />
+</head>
+<body>
+  <header class="company-header">
+    <div class="header-inner">
+      <div class="company-name">Lumen Software Co</div>
+      <div class="job-title">Software Engineer (Remote)</div>
+      <div class="job-meta">Remote · Engineering · Full-time</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="card" id="job-posting">
+      <h2 class="section-title">About the role</h2>
+      <p class="job-description">
+        We're hiring a remote Software Engineer to help build and ship product features across
+        our stack. You'll work closely with a small, senior team. This is a demo job posting
+        used to test an application-automation workflow — it does not lead to a real hiring
+        process.
+      </p>
+      <button class="apply-btn" id="apply-now-btn">Apply now</button>
+    </section>
+
+    <section class="card" id="application-form" hidden>
+      <h2 class="section-title">Personal Details</h2>
+      <div class="field">
+        <label for="full-name">Full name<span class="required">*</span></label>
+        <input type="text" id="full-name" />
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label for="email">Email<span class="required">*</span></label>
+          <input type="email" id="email" />
+        </div>
+        <div class="field">
+          <label for="phone">Phone<span class="required">*</span></label>
+          <input type="tel" id="phone" />
+        </div>
+      </div>
+
+      <h2 class="section-title">Resume/CV</h2>
+      <div class="field">
+        <label for="resume">Resume/CV<span class="required">*</span></label>
+        <div class="file-drop" id="resume-drop">
+          <div id="resume-drop-label">Attach your resume (PDF, DOCX, or TXT)</div>
+          <input type="file" id="resume" accept=".pdf,.doc,.docx,.txt" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="cover-letter">Cover letter<span class="optional">(optional)</span></label>
+        <textarea id="cover-letter" placeholder="Tell us why you're a great fit..."></textarea>
+      </div>
+
+      <h2 class="section-title">Links</h2>
+      <div class="row-2">
+        <div class="field">
+          <label for="linkedin">LinkedIn profile<span class="optional">(optional)</span></label>
+          <input type="url" id="linkedin" placeholder="https://linkedin.com/in/..." />
+        </div>
+        <div class="field">
+          <label for="portfolio">Portfolio/Website<span class="optional">(optional)</span></label>
+          <input type="url" id="portfolio" placeholder="https://..." />
+        </div>
+      </div>
+
+      <h2 class="section-title">Screening Questions</h2>
+      <div class="field">
+        <label for="work-auth">Are you legally authorized to work in the country where this position is located?<span class="required">*</span></label>
+        <select id="work-auth">
+          <option value="">Select...</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="sponsorship">Will you now or in the future require visa sponsorship?<span class="required">*</span></label>
+        <select id="sponsorship">
+          <option value="">Select...</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label for="desired-salary">What are your salary expectations?<span class="optional">(optional)</span></label>
+          <input type="text" id="desired-salary" />
+        </div>
+        <div class="field">
+          <label for="referral-source">How did you hear about this job?<span class="optional">(optional)</span></label>
+          <select id="referral-source">
+            <option value="">Select...</option>
+            <option value="LinkedIn">LinkedIn</option>
+            <option value="Company Website">Company Website</option>
+            <option value="Employee Referral">Employee Referral</option>
+            <option value="Job Board">Job Board</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <h2 class="section-title">Voluntary Equal Opportunity Information</h2>
+      <p class="hint" style="margin-top: -10px; margin-bottom: 18px;">
+        Completion of this section is voluntary and will not affect your application.
+      </p>
+      <div class="field">
+        <label for="gender">Gender</label>
+        <select id="gender">
+          <option value="">Select...</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Non-Binary">Non-Binary</option>
+          <option value="Prefer not to say">Prefer not to say</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="race-ethnicity">Race/Ethnicity</label>
+        <select id="race-ethnicity">
+          <option value="">Select...</option>
+          <option value="Asian">Asian</option>
+          <option value="White">White</option>
+          <option value="Black or African American">Black or African American</option>
+          <option value="Hispanic or Latino">Hispanic or Latino</option>
+          <option value="Two or More Races">Two or More Races</option>
+          <option value="Prefer not to say">Prefer not to say</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="veteran-status">Veteran status</label>
+        <select id="veteran-status">
+          <option value="">Select...</option>
+          <option value="I identify as one or more of the classifications of a protected veteran">
+            I identify as one or more of the classifications of a protected veteran
+          </option>
+          <option value="I am not a protected veteran">I am not a protected veteran</option>
+          <option value="Prefer not to say">Prefer not to say</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="disability-status">Disability status</label>
+        <select id="disability-status">
+          <option value="">Select...</option>
+          <option value="Yes, I have a disability, or have had one in the past">
+            Yes, I have a disability, or have had one in the past
+          </option>
+          <option value="No, I do not have a disability">No, I do not have a disability</option>
+          <option value="Prefer not to say">Prefer not to say</option>
+        </select>
+      </div>
+
+      <div class="validation-error" id="validation-error">Please fill in all required fields before submitting.</div>
+      <button class="submit-btn" id="submit-btn">Submit application</button>
+    </section>
+
+    <section class="card" id="confirmation-panel">
+      <div class="check">✅</div>
+      <h2 id="confirmation-message">Application submitted!</h2>
+      <p>Thanks for applying to Lumen Software Co — we'll be in touch soon.</p>
+      <div id="applicant-summary"></div>
+    </section>
+  </main>
+
+  <script src="mock-workable.js"></script>
+</body>
+</html>

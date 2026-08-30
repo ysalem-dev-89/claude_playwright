@@ -57,14 +57,14 @@ export async function fillWorkdayMyInformation(page: Page, profile: ApplicantPro
     await page.locator("#mi-city").fill(profile.personal.address.city);
     if (profile.personal.address.state) await page.locator("#mi-state").fill(profile.personal.address.state);
     if (profile.personal.address.postalCode) await page.locator("#mi-postal").fill(profile.personal.address.postalCode);
-    await page.locator("#mi-country").selectOption({ label: profile.personal.address.country }, { timeout: 3000 }).catch(() =>
+    await page.locator("#mi-country").selectOption({ label: profile.personal.address.country }, { timeout: 1200 }).catch(() =>
       log("warn", `No matching option for country "${profile.personal.address?.country}" — leaving blank.`),
     );
   }
   await page.locator("#mi-phone").fill(profile.personal.phone);
   if (profile.links.linkedin) await page.locator("#mi-linkedin").fill(profile.links.linkedin);
   if (profile.additionalInfo.howDidYouHear) {
-    await page.locator("#mi-source").selectOption({ label: profile.additionalInfo.howDidYouHear }, { timeout: 3000 }).catch(() => {});
+    await page.locator("#mi-source").selectOption({ label: profile.additionalInfo.howDidYouHear }, { timeout: 1200 }).catch(() => {});
   }
   const resumePath = path.resolve(process.cwd(), profile.resume.filePath);
   await page.locator("#mi-resume").setInputFiles(resumePath);
@@ -119,13 +119,13 @@ export async function fillWorkdayApplicationQuestions(page: Page, profile: Appli
 
 export async function fillWorkdayVoluntaryDisclosures(page: Page, profile: ApplicantProfile, log: RunLogger): Promise<void> {
   log("info", "Filling Voluntary Disclosures...");
-  await page.locator("#vd-gender").selectOption({ label: profile.eeoc.gender }, { timeout: 3000 }).catch(() =>
+  await page.locator("#vd-gender").selectOption({ label: profile.eeoc.gender }, { timeout: 1200 }).catch(() =>
     log("warn", `No matching option for gender "${profile.eeoc.gender}" — leaving blank.`),
   );
-  await page.locator("#vd-ethnicity").selectOption({ label: profile.eeoc.raceEthnicity }, { timeout: 3000 }).catch(() =>
+  await page.locator("#vd-ethnicity").selectOption({ label: profile.eeoc.raceEthnicity }, { timeout: 1200 }).catch(() =>
     log("warn", `No matching option for race/ethnicity "${profile.eeoc.raceEthnicity}" — leaving blank.`),
   );
-  await page.locator("#vd-veteran").selectOption({ label: profile.eeoc.veteranStatus }, { timeout: 3000 }).catch(() =>
+  await page.locator("#vd-veteran").selectOption({ label: profile.eeoc.veteranStatus }, { timeout: 1200 }).catch(() =>
     log("warn", `No matching option for veteran status "${profile.eeoc.veteranStatus}" — leaving blank.`),
   );
   await page.locator('button[data-next="self-identify"]').click();
@@ -133,7 +133,7 @@ export async function fillWorkdayVoluntaryDisclosures(page: Page, profile: Appli
 
 export async function fillWorkdaySelfIdentify(page: Page, profile: ApplicantProfile, log: RunLogger): Promise<void> {
   log("info", "Filling Self Identification...");
-  await page.locator(`input[name="disability"][value="${profile.eeoc.disabilityStatus}"]`).check({ timeout: 3000 }).catch(async () => {
+  await page.locator(`input[name="disability"][value="${profile.eeoc.disabilityStatus}"]`).check({ timeout: 1200 }).catch(async () => {
     log("warn", `No exact disability option matched "${profile.eeoc.disabilityStatus}" — selecting "I do not want to answer".`);
     await page.locator('input[name="disability"][value="I do not want to answer"]').check();
   });

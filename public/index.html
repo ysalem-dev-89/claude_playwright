@@ -36,16 +36,27 @@
               <p>Multi-step wizard: account sign-in/creation, then several "Save and Continue" steps before Review.</p>
             </div>
           </label>
+          <label class="strategy-card">
+            <input type="radio" name="platform" value="workable" />
+            <div>
+              <strong>Workable</strong>
+              <p>Click "Apply now" to reveal one form, then submit for real — this platform is meant for real postings.</p>
+            </div>
+          </label>
         </div>
 
         <h2>Target job posting</h2>
-        <p class="hint">Leave as the mock posting, or paste a real job URL for the selected platform to test fill
-          accuracy against a real form. Submission (and, for Workday, real account registration) is hard-disabled
-          for anything other than the mock posting — this app will never submit an application or create a real
-          account on a real site.</p>
+        <p class="hint">Leave as the mock posting, or paste a real job URL for the selected platform. On Greenhouse
+          and Workday this is fill-only — submission (and, for Workday, real account registration) is hard-disabled
+          for anything other than the mock posting. <strong>Workable is different: a real Workable URL here is a
+          real application</strong> — nothing submits until you click Submit yourself (or check "Auto-submit"),
+          but when you do, it goes to a real employer.</p>
         <input type="text" id="job-url" placeholder="/mock-job.html" />
         <p class="hint" id="external-hint" hidden>
           ⚠️ External target — <strong>fill-only</strong>. Auto-submit and Submit Application are disabled.
+        </p>
+        <p class="hint" id="real-submission-hint" hidden>
+          🔴 Real target — <strong>submission is live</strong>. Review carefully before you click Submit.
         </p>
 
         <h2>Applicant profile (JSON)</h2>
