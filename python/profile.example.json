@@ -19,8 +19,8 @@
     "github": "https://github.com/jordan-rivera-example"
   },
   "resume": {
-    "file_name": "resume.txt",
-    "file_path": "../sample-data/resume.txt"
+    "file_name": "resume.docx",
+    "file_path": "sample-data/resume.docx"
   },
   "work_authorization": {
     "authorized_to_work": true,

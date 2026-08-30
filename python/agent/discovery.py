@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from typing import Callable
 
-from .schema import DiscoveredForm
+from .schema import DiscoveredForm, StandardFields
+from .selectors import normalize_selector
 
 Log = Callable[[str], None]
 
@@ -29,19 +30,52 @@ DISCOVERY_INSTRUCTION = (
     "select/radio field, and your best classification of what it's really asking."
 )
 
+REVEAL_INSTRUCTION = (
+    "If there is an 'Apply' or 'Apply now' button and the application form fields are not "
+    "already visible, click it to reveal the form. If the form is already visible, do nothing."
+)
 
-async def discover_form(page, log: Log) -> DiscoveredForm:
+
+async def reveal_form(page, standard: StandardFields, log: Log) -> None:
+    """Make sure the actual field inputs are on the page before we try to discover or fill
+    them. Tries the cached apply-button selector first (zero LLM cost); only asks the model to
+    find and click it when there's no cached selector yet, or the cached one no longer works."""
+    selector = normalize_selector(standard.apply_button_selector) if standard else None
+    if selector:
+        try:
+            await page.locator(selector).click(timeout=2000)
+            log("Clicked the Apply button (cached selector) to reveal the form.")
+            await page.wait_for_timeout(400)
+            return
+        except Exception as err:  # noqa: BLE001
+            log(f"Cached Apply button selector didn't work ({str(err).splitlines()[0]}) - asking AI instead...")
     try:
-        await page.act(
-            "If there is an 'Apply' or 'Apply now' button and the application form fields "
-            "are not already visible, click it to reveal the form. If the form is already "
-            "visible, do nothing."
-        )
+        await page.act(REVEAL_INSTRUCTION)
+        await page.wait_for_timeout(400)
     except Exception as err:  # noqa: BLE001 - best-effort, the form may already be visible
         log(f"No separate Apply button needed (or none found): {err}")
 
+
+def _normalize_form_selectors(form: DiscoveredForm) -> DiscoveredForm:
+    s = form.standard
+    s.apply_button_selector = normalize_selector(s.apply_button_selector)
+    s.submit_button_selector = normalize_selector(s.submit_button_selector)
+    for field in (
+        s.first_name, s.last_name, s.full_name, s.email, s.phone,
+        s.resume_upload, s.cover_letter, s.linkedin, s.portfolio_website,
+    ):
+        if field is not None:
+            field.selector = normalize_selector(field.selector)
+    for question in form.screening_questions:
+        question.selector = normalize_selector(question.selector) or question.selector
+    return form
+
+
+async def discover_form(page, log: Log) -> DiscoveredForm:
+    """Assumes the form is already visible (call reveal_form first)."""
     log("Asking the model to map every field on this form (one LLM call)...")
     form = await page.extract(DISCOVERY_INSTRUCTION, schema=DiscoveredForm)
+    form = _normalize_form_selectors(form)
     log(
         f"Parsed {sum(1 for v in form.standard.model_dump().values() if v)} standard field(s) "
         f"and {len(form.screening_questions)} screening question(s)."

@@ -28,17 +28,47 @@ job postings on your own machine, with your own Anthropic API key.
    gradually. Select/radio answers are matched against the real option text with an
    exact-match → substring → common opt-out-phrase fallback, since real forms rarely spell an
    option exactly like your profile data does.
-4. **AI repair (fallback only).** If a cached selector no longer matches anything (the page
-   changed, or the platform's DOM has quirks the first pass didn't fully capture), that one
-   field falls back to a live Stagehand `act()` call instead of failing outright.
-5. **Review, then optionally submit.** By default the script fills and stops so you can review
+4. **AI repair (fallback only, retried).** If a selector doesn't work, that one field falls
+   back to a live Stagehand `act()` call — retried up to 3 times with progressively more
+   specific instructions before it's given up on and logged, rather than failing after one try.
+5. **AI answer generation (for questions the profile doesn't cover).** A screening question
+   that isn't one of the standard profile fields (an open-ended "why this role", a custom
+   employer question, a yes/no the profile doesn't model) is *not* left blank: a second, cheap
+   AI pass (`agent/answering.py`, one plain-text call, no DOM/page access needed) is asked to
+   write a short, honest answer grounded in your actual profile JSON and resume text, then that
+   answer is filled in like any other value. It's told explicitly not to invent credentials you
+   don't have — a question about a clearance you don't hold gets answered "No", not a lie.
+6. **Reveal the form on every run, not just the first.** The Apply button is clicked before
+   filling whether or not this is a cache hit — using the cached button selector (DOM only) if
+   one was learned, falling back to AI only if that selector no longer works or none was cached
+   yet. You should never need to click Apply yourself.
+7. **Review, then optionally submit.** By default the script fills and stops so you can review
    the form yourself. Pass `--submit` to actually click Submit (with a confirmation prompt
    unless you also pass `--yes`).
+
+### Numeric-id selectors
+
+Real ATS DOMs (Workable included) often use bare-numeric element ids, e.g. `id="778"`. A naive
+`#778` CSS selector is invalid — a CSS identifier can't start with a digit — so every selector
+is normalized (`agent/selectors.py`) to the equivalent `[id="778"]` attribute-selector form
+before use, both for freshly-discovered selectors and for ones already sitting in an older
+cache file. Without this, every single field on a form using numeric ids would fail its DOM
+fill and silently fall back to a full AI repair every run, defeating the cache.
 
 This generalizes beyond Workable: any job source works the same way — first run on a new
 hostname pays for one AI discovery pass, every run after that (including other job postings on
 the same host) is DOM-only except for the per-job screening questions, which get their own one-
 time discovery pass the first time you use that specific posting.
+
+### On leaving nothing blank
+
+The goal is a fully-filled form with no manual intervention: every standard field, every
+screening question matched to a profile value, and every remaining open-ended/custom question
+answered by the AI-answer pass. A field only ends up in `unanswered_questions` (printed at the
+end of a run) if the AI-answer call itself fails (e.g. no network, invalid key) — check that
+list before using `--submit`. A field lands in `skipped` only if 3 DOM attempts *and* 3 AI
+repair attempts all failed to interact with it at all (a genuinely broken/hidden element) —
+also worth reviewing before submitting.
 
 ## Setup
 
@@ -60,6 +90,9 @@ cp profile.example.json my-profile.json
 ```
 
 `resume.file_path` is resolved relative to this `python/` directory (or pass an absolute path).
+It defaults to the bundled `sample-data/resume.docx` — a placeholder in `.docx` format (rather
+than plain `.txt`) since real application forms commonly reject `.txt` uploads outright. Point
+it at your real resume (`.pdf`, `.doc`, or `.docx`) before submitting anything for real.
 
 ## Usage
 
@@ -141,19 +174,30 @@ glossed over:
 
 What **was** verified, mechanically, against a real headless Chromium browser:
 
-- The CLI parses all flags correctly (`python apply.py --help`) and fails fast with a clear
-  error when `ANTHROPIC_API_KEY` is missing, before ever launching a browser.
+- The CLI parses all flags correctly (`python apply.py --help`) and fails fast with a clear,
+  provider-specific error when the relevant API key env var is missing, before ever launching a
+  browser.
 - The two-tier cache (`agent/cache.py`) correctly derives the platform key and job key from a
   real Workable job URL, writes both tiers to disk, and reloads them.
+- The exact bug reported from a real run against a live Workable posting — every field failing
+  with `SyntaxError: '#778' is not a valid selector` because Workable uses bare-numeric element
+  ids — was reproduced against a real Chromium page (confirmed the raw `#778` selector throws)
+  and confirmed fixed by `agent/selectors.py`'s normalization to `[id="778"]`.
 - `agent/filler.py`'s DOM-fill path was run against a throwaway local test form covering every
-  field type (text, email, tel, url, textarea, file upload, select, radio group) and correctly
-  filled all of them from a `ApplicantProfile`, including select/radio option-text matching
-  against real (differently-worded) option labels.
-  - resume upload was set via a locator's real `set_input_files`, not mocked.
-  - a deliberately broken selector was included to confirm the AI-repair fallback actually
-    triggers on a DOM failure (it did — it then failed, as expected, since no live Stagehand
-    session/API key was available in that test, and the field correctly landed in `skipped`
-    rather than crashing the run).
+  field type (text, email, tel, url, textarea, file upload, select, radio group, and a
+  numeric-id select) and correctly filled all of them from an `ApplicantProfile`, including
+  select/radio option-text matching against real (differently-worded) option labels.
+  - resume upload was set via a locator's real `set_input_files`, using the bundled
+    `sample-data/resume.docx` (confirmed to be a valid, readable `.docx`), not mocked.
+- The AI-repair retry loop was unit-tested in isolation (fake page whose `act()` fails N times):
+  confirmed it recovers on attempt 2 or 3 when a later attempt succeeds, and gives up after
+  exactly 3 attempts (never more, never fewer) when it never does.
+- The AI-answer fallback (`agent/answering.py`) for a screening question with no matching
+  profile field was exercised against the real Anthropic API from this sandbox (using a fake
+  key) — it made a real network call, got a real `AuthenticationError` back, logged it, and the
+  question correctly landed in `unanswered_questions` instead of crashing the run. This
+  confirms the failure path is clean; a real key would have produced a real generated answer
+  instead (not verified here, since no real key is available in this sandbox).
 
 Before relying on this against a real posting, run once with `--debug` (no `--submit`) so you
 can watch the fill happen and check the result yourself before ever adding `--submit`.

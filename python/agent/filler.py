@@ -1,6 +1,8 @@
 """Fills a form purely by DOM (Playwright locators, zero LLM calls) using a discovered/cached
-field map. The only LLM usage in this module is a last-resort, single-field `act()` repair
-when a cached selector no longer matches anything on the page.
+field map. Two LLM fallbacks exist, both used only when the DOM path can't get a field filled:
+a single-field `act()` repair (retried a few times) when a selector no longer matches anything,
+and a plain-text "what should I even put here" answer for a screening question the profile has
+no direct field for.
 """
 
 from __future__ import annotations
@@ -9,12 +11,15 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+from .answering import generate_answer
 from .schema import ApplicantProfile, DiscoveredField, ScreeningQuestion, StandardFields
+from .selectors import normalize_selector
 
 Log = Callable[[str], None]
 
 DEFAULT_PACE_SECONDS = 0.45
 AFFIRMATIVE = {"yes", "true", "1"}
+MAX_AI_REPAIR_ATTEMPTS = 3
 
 
 @dataclass
@@ -23,6 +28,7 @@ class FillReport:
     skipped: list[str] = field(default_factory=list)
     unanswered_questions: list[str] = field(default_factory=list)
     repaired_by_ai: list[str] = field(default_factory=list)
+    ai_answered: list[str] = field(default_factory=list)
 
 
 def _closest_option(value: str, options: Optional[list[str]]) -> Optional[str]:
@@ -46,24 +52,41 @@ def _closest_option(value: str, options: Optional[list[str]]) -> Optional[str]:
     return None
 
 
-async def _ai_repair(page, label: str, value: str, field_type: str, log: Log) -> bool:
+def _repair_instruction(label: str, value: str, field_type: str, attempt: int) -> str:
     verb = {
         "file": f'Upload the file at path "{value}" to',
         "select": f'Select "{value}" in',
         "radio": f'Select "{value}" for',
         "checkbox": ("Check" if value.lower() in AFFIRMATIVE else "Uncheck"),
     }.get(field_type, f'Type "{value}" into')
-    instruction = f'{verb} the "{label}" field' if field_type != "checkbox" else f'{verb} the "{label}" checkbox'
-    try:
-        await page.act(instruction)
-        log(f'  AI repair succeeded for "{label}"')
-        return True
-    except Exception as err:  # noqa: BLE001
-        log(f'  AI repair also failed for "{label}": {str(err).splitlines()[0]}')
-        return False
+    base = f'{verb} the "{label}" field' if field_type != "checkbox" else f'{verb} the "{label}" checkbox'
+    if attempt == 1:
+        return base
+    if attempt == 2:
+        return f"{base}. Look carefully for a field whose nearby label or placeholder text matches \"{label}\" - it may not be the first similar-looking field on the page."
+    return f"{base}. This is a retry - a previous attempt did not take effect, so scroll if needed and double-check you've selected the right element before acting."
+
+
+async def _ai_repair(page, label: str, value: str, field_type: str, log: Log) -> bool:
+    last_error: Optional[Exception] = None
+    for attempt in range(1, MAX_AI_REPAIR_ATTEMPTS + 1):
+        instruction = _repair_instruction(label, value, field_type, attempt)
+        try:
+            await page.act(instruction)
+            if attempt > 1:
+                log(f'  AI repair succeeded for "{label}" on attempt {attempt}/{MAX_AI_REPAIR_ATTEMPTS}')
+            else:
+                log(f'  AI repair succeeded for "{label}"')
+            return True
+        except Exception as err:  # noqa: BLE001
+            last_error = err
+            log(f'  AI repair attempt {attempt}/{MAX_AI_REPAIR_ATTEMPTS} failed for "{label}": {str(err).splitlines()[0]}')
+    log(f'  Giving up on "{label}" after {MAX_AI_REPAIR_ATTEMPTS} AI attempts: {last_error}')
+    return False
 
 
 async def _fill_one(page, selector: str, field_type: str, value: str, label: str, log: Log, report: FillReport) -> None:
+    selector = normalize_selector(selector)
     try:
         locator = page.locator(selector)
         if field_type == "file":
@@ -82,7 +105,7 @@ async def _fill_one(page, selector: str, field_type: str, value: str, label: str
         log(f'Filled "{label}" -> "{value}"')
         report.filled.append(label)
     except Exception as err:  # noqa: BLE001
-        log(f'Could not fill "{label}" via DOM ({str(err).splitlines()[0]}) - trying a live AI repair...')
+        log(f'Could not fill "{label}" via DOM ({str(err).splitlines()[0]}) - trying up to {MAX_AI_REPAIR_ATTEMPTS} live AI repairs...')
         if await _ai_repair(page, label, value, field_type, log):
             report.filled.append(label)
             report.repaired_by_ai.append(label)
@@ -128,6 +151,9 @@ async def fill_application(
     profile: ApplicantProfile,
     resume_path: str,
     log: Log,
+    model: str,
+    api_key: str,
+    resume_text: str = "",
     pace_seconds: float = DEFAULT_PACE_SECONDS,
 ) -> FillReport:
     report = FillReport()
@@ -154,15 +180,16 @@ async def fill_application(
         await asyncio.sleep(pace_seconds)
 
     for question in questions:
-        if question.intent == "other":
-            report.unanswered_questions.append(question.question_text)
-            log(f'Skipping "{question.question_text}" - no matching profile field (intent: other). Review manually.')
-            continue
+        raw_value = None if question.intent == "other" else _intent_value(question.intent, profile)
 
-        raw_value = _intent_value(question.intent, profile)
+        if not raw_value:
+            raw_value = await generate_answer(model, api_key, profile, resume_text, question, log)
+            if raw_value:
+                report.ai_answered.append(question.question_text)
+
         if not raw_value:
             report.unanswered_questions.append(question.question_text)
-            log(f'Skipping "{question.question_text}" - profile has no value for "{question.intent}".')
+            log(f'Could not determine an answer for "{question.question_text}" (profile has nothing, and the AI answer pass also failed) - left blank.')
             continue
 
         value = raw_value

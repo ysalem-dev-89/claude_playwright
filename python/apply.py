@@ -24,6 +24,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from stagehand import Stagehand, StagehandConfig
 
+from agent.answering import extract_resume_text
 from agent.cache import (
     DEFAULT_CACHE_DIR,
     job_key,
@@ -33,9 +34,10 @@ from agent.cache import (
     save_job_questions,
     save_platform_fields,
 )
-from agent.discovery import discover_form
+from agent.discovery import discover_form, reveal_form
 from agent.filler import fill_application
-from agent.schema import ApplicantProfile, DiscoveredForm
+from agent.schema import ApplicantProfile, DiscoveredForm, StandardFields
+from agent.selectors import normalize_selector
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_PROFILE_PATH = SCRIPT_DIR / "profile.example.json"
@@ -150,11 +152,13 @@ async def get_or_discover_form(page, url: str, cache_dir: Path, strategy: str) -
         cached_questions = load_job_questions(cache_dir, hostname, job)
         if cached_standard is not None and cached_questions is not None:
             log(f"Using cached field map for {hostname} (job {job}) — no LLM call needed to locate fields.")
+            await reveal_form(page, cached_standard, log)
             return DiscoveredForm(standard=cached_standard, screening_questions=cached_questions)
         log(f"No cached field map yet for {hostname} (job {job}) — parsing this form with AI once.")
     else:
         log("Strategy is 'ai' — re-parsing this form with AI (ignoring any existing cache).")
 
+    await reveal_form(page, StandardFields(), log)
     form = await discover_form(page, log)
     save_platform_fields(cache_dir, hostname, form.standard)
     save_job_questions(cache_dir, hostname, job, form.screening_questions)
@@ -194,11 +198,19 @@ async def run(args: argparse.Namespace) -> int:
         cache_dir = Path(args.cache_dir)
         form = await get_or_discover_form(page, args.url, cache_dir, args.strategy)
 
+        resume_text = extract_resume_text(resume_path)
         log("Filling the form...")
-        report = await fill_application(page, form.standard, form.screening_questions, profile, resume_path, log)
+        report = await fill_application(
+            page, form.standard, form.screening_questions, profile, resume_path, log,
+            model=args.model, api_key=api_key, resume_text=resume_text,
+        )
 
         print()
-        log(f"Done. Filled {len(report.filled)} field(s) ({len(report.repaired_by_ai)} needed a live AI repair), skipped {len(report.skipped)}.")
+        log(
+            f"Done. Filled {len(report.filled)} field(s) "
+            f"({len(report.repaired_by_ai)} needed a live AI repair, {len(report.ai_answered)} needed an AI-generated answer), "
+            f"skipped {len(report.skipped)}."
+        )
         if report.unanswered_questions:
             log("Questions left unanswered — review these yourself before submitting:")
             for question in report.unanswered_questions:
@@ -211,7 +223,7 @@ async def run(args: argparse.Namespace) -> int:
                     log("Submit cancelled.")
                     return 0
             log("Submitting...")
-            submit_selector = form.standard.submit_button_selector
+            submit_selector = normalize_selector(form.standard.submit_button_selector)
             try:
                 if not submit_selector:
                     raise RuntimeError("no cached submit selector")
