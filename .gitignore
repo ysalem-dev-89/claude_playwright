@@ -3,3 +3,10 @@ dist/
 .env
 *.log
 /data/
+
+# Python (python/)
+python/.venv/
+python/__pycache__/
+python/agent/__pycache__/
+python/.env
+python/cache/

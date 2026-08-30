@@ -1,0 +1,4 @@
+stagehand==0.5.14
+playwright==1.56.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0

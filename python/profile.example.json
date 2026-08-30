@@ -1,0 +1,42 @@
+{
+  "personal": {
+    "first_name": "Jordan",
+    "last_name": "Rivera",
+    "email": "jordan.rivera@example.com",
+    "phone": "+1-555-0100",
+    "location": "Austin, TX, USA",
+    "address": {
+      "line1": "123 Main St",
+      "city": "Austin",
+      "state": "TX",
+      "postal_code": "78701",
+      "country": "United States"
+    }
+  },
+  "links": {
+    "linkedin": "https://www.linkedin.com/in/jordan-rivera-example",
+    "portfolio": "https://jordanrivera.example.dev",
+    "github": "https://github.com/jordan-rivera-example"
+  },
+  "resume": {
+    "file_name": "resume.txt",
+    "file_path": "../sample-data/resume.txt"
+  },
+  "work_authorization": {
+    "authorized_to_work": true,
+    "requires_sponsorship": false
+  },
+  "cover_letter": "I'm excited to apply for this role. My background in building reliable, well-tested software lines up closely with what you're looking for, and I'd welcome the chance to talk more about how I can contribute.",
+  "additional_info": {
+    "how_did_you_hear": "Job board",
+    "desired_salary": "Negotiable",
+    "available_start_date": "Immediately",
+    "years_experience": "5"
+  },
+  "eeoc": {
+    "gender": "Prefer not to say",
+    "race_ethnicity": "Prefer not to say",
+    "veteran_status": "Prefer not to say",
+    "disability_status": "Prefer not to say"
+  }
+}
